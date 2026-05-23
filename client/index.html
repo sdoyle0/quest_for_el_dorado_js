@@ -22,22 +22,23 @@
     <!-- Board area — SVG hex map renders here -->
     <div id="board-container">
       <svg id="hex-board" xmlns="http://www.w3.org/2000/svg"></svg>
+
+
+      <!-- Player hand -->
+      <div id="player-hand-ui">
+        <div id="hand-cards"></div>
+        <div id="hand-controls">
+          <button id="open-market-btn">Market</button>
+          <button id="end-turn-btn">End Turn</button>
+          <button id="discard-btn">Discard Card</button>
+        </div>
+      </div>
     </div>
 
     <!-- HUD -->
     <div id="hud">
       <div id="current-player-label">Waiting...</div>
       <div id="game-log"></div>
-    </div>
-
-    <!-- Player hand -->
-    <div id="player-hand-ui">
-      <div id="hand-cards"></div>
-      <div id="hand-controls">
-        <button id="open-market-btn">Market</button>
-        <button id="end-turn-btn">End Turn</button>
-        <button id="discard-btn">Discard Card</button>
-      </div>
     </div>
 
     <!-- Card market overlay -->
