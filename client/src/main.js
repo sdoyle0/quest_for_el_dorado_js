@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
   cardUI.onEndTurn        = ()            => client.endTurn();
   cardUI.onOpenMarket     = ()            => cardUI.showMarket(true);
   cardUI.onCancelPurchase = ()            => cardUI.showMarket(false);
-  cardUI.onMarketCard     = (cardKey)     => client.purchaseCard(cardKey);
+  cardUI.onMarketCard     = ({ cardKey, handCardsUsed }) => client.purchaseCard(cardKey, handCardsUsed);
 
   // ── Server → UI events ─────────────────────────────────────────────────────
   client.onHandUpdated = ({ hand }) => cardUI.renderHand(hand);
@@ -107,8 +107,8 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   client.onMarketUpdated  = ({ market }) => { cardUI.renderMarket(market); cardUI.showMarket(false); };
-  client.onPurchaseOpened = ({ totalPurchasePower }) => { cardUI.showMarket(true); cardUI.updatePurchaseTotal(totalPurchasePower); };
-  client.onPurchaseClosed = ()                       => { cardUI.showMarket(false); cardUI.updatePurchaseTotal(0); };
+  client.onPurchaseOpened = ({ totalPurchasePower }) => cardUI.openMarketWithBonus(totalPurchasePower);
+  client.onPurchaseClosed = () => cardUI.closeMarket();
   client.onPromptRemove   = ({ count })              => showModal(`Select ${count} card(s) to permanently remove from your deck.`);
 
   client.onGameWon = ({ playerId }) => {

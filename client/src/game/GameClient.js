@@ -25,6 +25,8 @@ class GameClient {
     this.onGameWon        = null;
     this.onPlayerJoined   = null;
     this.onLog            = null;
+    this.onCardDisposed   = null;
+    this.onActionError    = null;
 
     this._bindEvents();
   }
@@ -52,6 +54,8 @@ class GameClient {
     s.on('prompt_remove_cards',d => this.onPromptRemove?.(d));
     s.on('game_won',           d => this.onGameWon?.(d));
     s.on('log',                d => this.onLog?.(d));
+    s.on('card_disposed',      d => this.onCardDisposed?.(d));
+    s.on('action_error',       d => this.onActionError?.(d));
 
     s.on('error', ({ message }) => {
       console.warn('[server error]', message);
@@ -61,12 +65,12 @@ class GameClient {
 
   // --- Actions (mirrors RPC calls) ---
 
-  joinGame(playerName) {
-    this.socket.emit('join_game', { playerName });
+  joinGame(playerName, debugMode = false) {
+    this.socket.emit('join_game', { playerName, debugMode });
   }
 
-  playCard(cardKey) {
-    this.socket.emit('play_card', { cardKey });
+  playCard(instanceId) {
+    this.socket.emit('play_card', { instanceId });
   }
 
   movePawn(tileId) {
@@ -77,8 +81,8 @@ class GameClient {
     this.socket.emit('end_turn');
   }
 
-  purchaseCard(cardKey) {
-    this.socket.emit('purchase_card', { cardKey });
+  purchaseCard(cardKey, handCardsUsed = []) {
+    this.socket.emit('purchase_card', { cardKey, handCardsUsed });
   }
 
   discardCard(cardKey) {

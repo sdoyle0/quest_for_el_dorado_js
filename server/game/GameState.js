@@ -12,10 +12,7 @@ class GameStateManager {
     this.validMoves = [];
     this.selectingCardsToRemove = 0;
     this.selectingCardsForRubble = 0;
-    this.purchaseInProgress = false;
-    this.replacingEmptyFromReserve = false;
-    this.cardsForPurchase = [];
-    this.totalPurchasePower = 0;
+    this.transmitterActive = false;
     this.onEvent = null;
   }
 
@@ -51,11 +48,6 @@ class GameStateManager {
       player.playCard(instanceId);
       this.emit('hand_updated', { playerId, hand: player.hand });
       return { ok: true };
-    }
-
-    // Adding cards to purchase pool
-    if (this.purchaseInProgress) {
-      return this._addCardToPurchasePool(player, card);
     }
 
     // Normal card play — start a move
@@ -133,9 +125,7 @@ class GameStateManager {
     this.movesRemaining    = 0;
     this.wildCardTerrain   = null;
     this.validMoves        = [];
-    this.purchaseInProgress = false;
-    this.cardsForPurchase  = [];
-    this.totalPurchasePower = 0;
+    this.transmitterActive = false;
 
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
     const next = this.currentPlayer;
@@ -146,35 +136,41 @@ class GameStateManager {
   }
 
   // ── Purchase a card from the market ───────────────────────────────────────
-  purchaseCard(playerId, cardKey, cardMarket) {
+  // handCardsUsed: array of instanceIds the client is spending from their hand
+  purchaseCard(playerId, cardKey, handCardsUsed = [], cardMarket) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
 
     const player = this.currentPlayer;
-    const card   = cardMarket.getCard(cardKey);
+
+    // Validate all claimed hand cards actually exist in this player's hand
+    const spentCards = handCardsUsed
+      .map(id => player.hand.find(c => c.instanceId === id))
+      .filter(Boolean);
+    if (spentCards.length !== handCardsUsed.length) {
+      return { ok: false, error: 'invalid hand cards' };
+    }
+
+    // Calculate purchasing power: hand cards + transmitter bonus if active
+    let power = spentCards.reduce((sum, c) => sum + (c.purchasingPower ?? 0), 0);
+    if (this.transmitterActive) power += TRANSMITTER_PURCHASE_POWER;
+
+    const card = cardMarket.getCard(cardKey);
     if (!card) return { ok: false, error: 'card not in market' };
+    if (power < card.cost) return { ok: false, error: `need ${card.cost} power, have ${power}` };
 
-    if (this.replacingEmptyFromReserve) {
-      cardMarket.placeReserveCard(cardKey);
-      this.replacingEmptyFromReserve = false;
-      this.emit('market_updated', { market: cardMarket.getShopState() });
-      this._cleanUpPurchase(player);
-      return { ok: true };
-    }
-
-    if (this.totalPurchasePower < card.cost) {
-      return { ok: false, error: 'not enough purchase power' };
-    }
-
-    for (const c of this.cardsForPurchase) {
-      player.playCard(c.instanceId);
-    }
+    // Spend the hand cards
+    for (const c of spentCards) player.playCard(c.instanceId);
 
     const purchased = cardMarket.buyCard(cardKey);
+    if (!purchased) return { ok: false, error: 'card sold out' };
     player.discardPile.push(purchased);
 
+    this.transmitterActive = false;
+
     this.emit('card_purchased', { playerId, cardKey });
+    this.emit('hand_updated',   { playerId, hand: player.hand });
     this.emit('market_updated', { market: cardMarket.getShopState() });
-    this._cleanUpPurchase(player);
+    this.emit('purchase_closed',{ playerId });
     return { ok: true };
   }
 
@@ -183,9 +179,10 @@ class GameStateManager {
   _handleSpecialCardPlayed(player, card) {
     switch (card.specialEffect) {
       case CardEffect.TRANSMITTER:
-        this.purchaseInProgress  = true;
-        this.totalPurchasePower  = TRANSMITTER_PURCHASE_POWER;
-        this.emit('purchase_opened', { totalPurchasePower: this.totalPurchasePower });
+        this.transmitterActive = true;
+        this.state = GS.AWAITING_CARD;
+        this.playedCardData = null;
+        this.emit('purchase_opened', { totalPurchasePower: TRANSMITTER_PURCHASE_POWER });
         break;
       case CardEffect.CARTOGRAPHER:
         player.drawCards(2);
@@ -238,25 +235,6 @@ class GameStateManager {
     this.emit('hand_updated',  { playerId: player.id, hand: player.hand });
   }
 
-  _addCardToPurchasePool(player, card) {
-    this.cardsForPurchase.push(card);
-    this.totalPurchasePower += card.purchasingPower || 0;
-    // FIX: remove by instanceId not key (key removes ALL duplicates)
-    player.hand = player.hand.filter(c => c.instanceId !== card.instanceId);
-    this.emit('purchase_pool_updated', {
-      playerId:           player.id,
-      totalPurchasePower: this.totalPurchasePower,
-      hand:               player.hand,
-    });
-    return { ok: true };
-  }
-
-  _cleanUpPurchase(player) {
-    this.purchaseInProgress = false;
-    this.cardsForPurchase   = [];
-    this.totalPurchasePower = 0;
-    this.emit('purchase_closed', { playerId: player.id });
-  }
 
   _isCurrentPlayer(playerId) {
     return this.currentPlayer && this.currentPlayer.id === playerId;

@@ -37,20 +37,21 @@ io.on('connection', (socket) => {
   console.log(`[connect] ${socket.id}`);
 
   // --- Lobby ---
-  socket.on('join_game', ({ playerName }) => {
-    const { room, player } = gameManager.joinOrCreateRoom(socket, playerName);
+  socket.on('join_game', ({ playerName, debugMode = false }) => {
+    const { room, player } = gameManager.joinOrCreateRoom(socket, playerName, { debugMode });
     socket.emit('joined_room', {
       roomId: room.roomId,
       playerId: player.id,
       playerNumber: player.playerNumber,
+      debugMode,
     });
   });
 
   // --- Game actions ---
   // Mirrors: MultiplayerService.notify_server_user_played_card (movement variant)
-  socket.on('play_card', ({ cardKey }) => {
+  socket.on('play_card', ({ instanceId }) => {
     const room = gameManager.getRoomForSocket(socket.id);
-    if (room) room.handlePlayCard(socket.id, cardKey);
+    if (room) room.handlePlayCard(socket.id, instanceId);
   });
 
   // Mirrors: MultiplayerService.update_player_tile
@@ -66,9 +67,9 @@ io.on('connection', (socket) => {
   });
 
   // Mirrors: MultiplayerService.notify_server_user_purchased_card
-  socket.on('purchase_card', ({ cardKey }) => {
+  socket.on('purchase_card', ({ cardKey, handCardsUsed = [] }) => {
     const room = gameManager.getRoomForSocket(socket.id);
-    if (room) room.handlePurchaseCard(socket.id, cardKey);
+    if (room) room.handlePurchaseCard(socket.id, cardKey, handCardsUsed);
   });
 
   // Mirrors: MultiplayerService.notify_server_user_played_card (discard variant)
