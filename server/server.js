@@ -16,6 +16,8 @@ const io     = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
+app.use('/shared', express.static(path.join(__dirname, '../shared')));
+
 // Serve the client from /client
 app.use(express.static(path.join(__dirname, '..', 'client')));
 app.get('*', (req, res) => {
