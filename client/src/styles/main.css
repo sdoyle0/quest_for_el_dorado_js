@@ -1,0 +1,198 @@
+/* client/src/styles/main.css */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #1a1a2e;
+  color: #e0e0e0;
+  font-family: 'Georgia', serif;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.screen { display: none; }
+.screen.active { display: flex; flex-direction: column; height: 100vh; }
+.hidden { display: none !important; }
+
+/* Lobby */
+#lobby-screen {
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+#lobby-screen h1 { font-size: 2.5rem; color: #ffd700; }
+#player-name-input {
+  padding: .6rem 1rem;
+  font-size: 1rem;
+  border-radius: 4px;
+  border: 1px solid #555;
+  background: #2a2a3e;
+  color: #fff;
+  width: 240px;
+}
+#join-btn {
+  padding: .6rem 2rem;
+  background: #c0a830;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: bold;
+}
+#join-btn:hover { background: #ffd700; }
+
+/* Game layout */
+#game-screen { flex-direction: row; }
+
+#board-container {
+  flex: 1;
+  overflow: auto;
+  background: #0d1b2a;
+}
+
+#hex-board { width: 100%; height: 100%; }
+
+/* HUD sidebar */
+#hud {
+  width: 220px;
+  padding: 1rem;
+  background: #16213e;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  border-left: 1px solid #2a2a5a;
+}
+#current-player-label { font-size: .9rem; color: #ffd700; font-weight: bold; }
+#game-log {
+  flex: 1;
+  overflow-y: auto;
+  font-size: .75rem;
+  color: #aaa;
+  border: 1px solid #2a2a5a;
+  padding: .5rem;
+  border-radius: 4px;
+}
+#game-log p { margin-bottom: .25rem; }
+
+/* Player hand */
+#player-hand-ui {
+  height: 140px;
+  background: #0f3460;
+  border-top: 2px solid #ffd700;
+  display: flex;
+  flex-direction: column;
+  padding: .5rem;
+  gap: .5rem;
+  position: absolute;
+  bottom: 0; left: 0; right: 220px;
+}
+#hand-cards {
+  display: flex;
+  gap: .5rem;
+  overflow-x: auto;
+  flex: 1;
+}
+.card-btn {
+  min-width: 90px;
+  padding: .4rem .5rem;
+  background: #1e3a5f;
+  border: 1px solid #4a7aad;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: .75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: background .15s;
+}
+.card-btn:hover { background: #2a5080; border-color: #ffd700; }
+.card-name { font-weight: bold; }
+.card-gold { color: #ffd700; }
+
+#hand-controls {
+  display: flex;
+  gap: .5rem;
+}
+#hand-controls button {
+  padding: .3rem .8rem;
+  border: 1px solid #4a7aad;
+  background: #1a3550;
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: .8rem;
+}
+#hand-controls button:hover { background: #2a5080; }
+#hand-controls button:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Market overlay */
+#card-market {
+  position: absolute;
+  bottom: 140px; left: 0; right: 220px;
+  background: #0d2035;
+  border-top: 2px solid #c0a830;
+  padding: .75rem;
+  z-index: 10;
+}
+#market-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .5rem;
+  color: #ffd700;
+  font-weight: bold;
+}
+#shop-slots {
+  display: flex;
+  gap: .5rem;
+  overflow-x: auto;
+}
+.market-card {
+  min-width: 90px;
+  padding: .4rem .5rem;
+  background: #1e3a5f;
+  border: 1px solid #c0a830;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: .75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.market-card.empty { opacity: .4; cursor: default; }
+.market-card:not(.empty):hover { background: #2a5080; }
+.card-cost { color: #ffd700; }
+
+/* Modal */
+#modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+#modal-box {
+  background: #16213e;
+  border: 2px solid #ffd700;
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 400px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+#modal-box button {
+  padding: .5rem 1.5rem;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: .9rem;
+}
+#modal-confirm-btn { background: #ffd700; color: #1a1a2e; font-weight: bold; }
+#modal-cancel-btn  { background: #555; color: #fff; }

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quest for El Dorado</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+
+  <!-- ===================== LOBBY ===================== -->
+  <div id="lobby-screen" class="screen active">
+    <h1>Quest for El Dorado</h1>
+    <input id="player-name-input" type="text" placeholder="Your name" maxlength="20" />
+    <button id="join-btn">Find Game</button>
+    <p id="lobby-status"></p>
+  </div>
+
+  <!-- ===================== GAME ===================== -->
+  <div id="game-screen" class="screen">
+
+    <!-- Board area — SVG hex map renders here -->
+    <div id="board-container">
+      <svg id="hex-board" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div id="current-player-label">Waiting...</div>
+      <div id="game-log"></div>
+    </div>
+
+    <!-- Player hand -->
+    <div id="player-hand-ui">
+      <div id="hand-cards"></div>
+      <div id="hand-controls">
+        <button id="open-market-btn">Market</button>
+        <button id="end-turn-btn">End Turn</button>
+        <button id="discard-btn">Discard Card</button>
+      </div>
+    </div>
+
+    <!-- Card market overlay -->
+    <div id="card-market" class="overlay hidden">
+      <div id="market-header">
+        <span>Market</span>
+        <span id="purchase-total">Total: 0</span>
+        <button id="cancel-purchase-btn">Cancel</button>
+      </div>
+      <div id="shop-slots"></div>
+    </div>
+
+    <!-- Prompt modals -->
+    <div id="modal-overlay" class="overlay hidden">
+      <div id="modal-box">
+        <p id="modal-message"></p>
+        <button id="modal-confirm-btn">OK</button>
+        <button id="modal-cancel-btn">Cancel</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Shared constants (works without a bundler) -->
+  <script src="../shared/constants.js"></script>
+
+  <!-- Socket.io client (served by the Node server automatically) -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- Game client modules -->
+  <script src="src/game/HexRenderer.js"></script>
+  <script src="src/game/CardUI.js"></script>
+  <script src="src/game/GameClient.js"></script>
+  <script src="src/main.js"></script>
+
+</body>
+</html>

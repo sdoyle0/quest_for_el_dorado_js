@@ -1,0 +1,267 @@
+{
+  "tiles": [
+    {
+      "id": "B-1-0",
+      "col": 1,
+      "row": 0,
+      "terrainType": "start",
+      "movementCost": 1,
+      "playerNumber": 4
+    },
+    {
+      "id": "B-2-0",
+      "col": 2,
+      "row": 0,
+      "terrainType": "start",
+      "movementCost": 1,
+      "playerNumber": 3
+    },
+    {
+      "id": "B-3-0",
+      "col": 3,
+      "row": 0,
+      "terrainType": "start",
+      "movementCost": 1,
+      "playerNumber": 2
+    },
+    {
+      "id": "B-4-0",
+      "col": 4,
+      "row": 0,
+      "terrainType": "start",
+      "movementCost": 1,
+      "playerNumber": 1
+    },
+    {
+      "id": "B-1-1",
+      "col": 1,
+      "row": 1,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-2-1",
+      "col": 2,
+      "row": 1,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-3-1",
+      "col": 3,
+      "row": 1,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-4-1",
+      "col": 4,
+      "row": 1,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-5-1",
+      "col": 5,
+      "row": 1,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-0-2",
+      "col": 0,
+      "row": 2,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-1-2",
+      "col": 1,
+      "row": 2,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-2-2",
+      "col": 2,
+      "row": 2,
+      "terrainType": "water",
+      "movementCost": 1
+    },
+    {
+      "id": "B-3-2",
+      "col": 3,
+      "row": 2,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-4-2",
+      "col": 4,
+      "row": 2,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-5-2",
+      "col": 5,
+      "row": 2,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-0-3",
+      "col": 0,
+      "row": 3,
+      "terrainType": "water",
+      "movementCost": 1
+    },
+    {
+      "id": "B-1-3",
+      "col": 1,
+      "row": 3,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-2-3",
+      "col": 2,
+      "row": 3,
+      "terrainType": "village",
+      "movementCost": 1
+    },
+    {
+      "id": "B-3-3",
+      "col": 3,
+      "row": 3,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-4-3",
+      "col": 4,
+      "row": 3,
+      "terrainType": "village",
+      "movementCost": 1
+    },
+    {
+      "id": "B-5-3",
+      "col": 5,
+      "row": 3,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-6-3",
+      "col": 6,
+      "row": 3,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-0-4",
+      "col": 0,
+      "row": 4,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-1-4",
+      "col": 1,
+      "row": 4,
+      "terrainType": "village",
+      "movementCost": 1
+    },
+    {
+      "id": "B-2-4",
+      "col": 2,
+      "row": 4,
+      "terrainType": "water",
+      "movementCost": 1
+    },
+    {
+      "id": "B-3-4",
+      "col": 3,
+      "row": 4,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-4-4",
+      "col": 4,
+      "row": 4,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-5-4",
+      "col": 5,
+      "row": 4,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-1-5",
+      "col": 1,
+      "row": 5,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-2-5",
+      "col": 2,
+      "row": 5,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-3-5",
+      "col": 3,
+      "row": 5,
+      "terrainType": "village",
+      "movementCost": 1
+    },
+    {
+      "id": "B-4-5",
+      "col": 4,
+      "row": 5,
+      "terrainType": "mountain",
+      "movementCost": 2
+    },
+    {
+      "id": "B-5-5",
+      "col": 5,
+      "row": 5,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-1-6",
+      "col": 1,
+      "row": 6,
+      "terrainType": "jungle",
+      "movementCost": 1
+    },
+    {
+      "id": "B-2-6",
+      "col": 2,
+      "row": 6,
+      "terrainType": "water",
+      "movementCost": 1
+    },
+    {
+      "id": "B-3-6",
+      "col": 3,
+      "row": 6,
+      "terrainType": "camp",
+      "movementCost": 1
+    },
+    {
+      "id": "B-4-6",
+      "col": 4,
+      "row": 6,
+      "terrainType": "water",
+      "movementCost": 1
+    }
+  ]
+}
