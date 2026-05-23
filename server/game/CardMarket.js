@@ -1,77 +1,61 @@
 // server/game/CardMarket.js
-// Mirrors: res://scripts/CardMarket.gd
-// The server is the authoritative source for market state.
+// Mirrors multiplayer_service shop/reserve card logic.
+//
+// GDScript structure: shopCards = { CARD_KEY: count }
+// Our structure: shop/reserve are arrays of card objects with a `remaining` count.
+
+const { buildShopState } = require('../../shared/cardData');
 
 class CardMarket {
   constructor() {
-    // Active shop slots (typically 6 face-up cards)
-    this.shopSlots = [];   // Array of CardData | null
-
-    // Reserve deck (cards that refill empty shop slots)
-    this.reserveDeck = [];
+    this.shop    = []; // 6 face-up card types, each with a `remaining` count
+    this.reserve = []; // reserve pile, same structure
   }
 
-  // TODO: Port your initial market setup from CardMarket.gd
-  // Shuffle and deal initial shop cards from the full card pool
-  init(cardPool) {
-    this.reserveDeck = shuffle([...cardPool]);
-    this.shopSlots = [];
-    for (let i = 0; i < 6; i++) {
-      this.shopSlots.push(this.reserveDeck.pop() || null);
-    }
-  }
-
-  getCard(cardKey) {
-    return this.shopSlots.find(c => c && c.key === cardKey) || null;
-  }
-
-  // Remove and return a card from the shop, flagging if reserve is needed
-  buyCard(cardKey) {
-    const idx = this.shopSlots.findIndex(c => c && c.key === cardKey);
-    if (idx === -1) return null;
-    const card = this.shopSlots[idx];
-
-    if (this.reserveDeck.length > 0) {
-      this.shopSlots[idx] = this.reserveDeck.pop();
-    } else {
-      this.shopSlots[idx] = null;
-      // Signal that a player needs to manually place a reserve card
-      // This mirrors: MultiplayerService.shop_card_needs_replaced signal
-      this._needsManualReplace = true;
-    }
-
-    return card;
-  }
-
-  needsReserveReplacement() {
-    return !!this._needsManualReplace;
-  }
-
-  // Player manually places a reserve card from the pile
-  placeReserveCard(cardKey) {
-    const emptyIdx = this.shopSlots.findIndex(s => s === null);
-    if (emptyIdx === -1) return;
-    const card = this.reserveDeck.find(c => c.key === cardKey);
-    if (!card) return;
-    this.reserveDeck = this.reserveDeck.filter(c => c.key !== cardKey);
-    this.shopSlots[emptyIdx] = card;
-    this._needsManualReplace = false;
+  init() {
+    const state    = buildShopState();
+    this.shop    = state.shop;
+    this.reserve = state.reserve;
   }
 
   getShopState() {
-    return {
-      shopSlots: this.shopSlots,
-      reserveCount: this.reserveDeck.length,
-    };
+    return { shop: this.shop, reserve: this.reserve };
   }
-}
 
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+  getCard(cardKey, fromReserve = false) {
+    const arr = fromReserve ? this.reserve : this.shop;
+    return arr.find(c => c.key === cardKey) || null;
   }
-  return arr;
+
+  // Mirrors _move_card_from_store_to_player_discard()
+  // Returns the card definition if purchase is valid, null otherwise.
+  buyCard(cardKey, fromReserve = false) {
+    const arr  = fromReserve ? this.reserve : this.shop;
+    const slot = arr.find(c => c.key === cardKey);
+    if (!slot || slot.remaining <= 0) return null;
+    slot.remaining--;
+    // Returns a fresh card instance for the player's discard pile
+    return { ...slot, remaining: undefined, instanceId: `${cardKey}-bought-${Date.now()}` };
+  }
+
+  // Mirrors notify_server_user_placed_reserve_card_to_shop()
+  moveReserveToShop(cardKey) {
+    const rSlot = this.reserve.find(c => c.key === cardKey);
+    if (!rSlot || rSlot.remaining <= 0) return false;
+    const sSlot = this.shop.find(c => c.key === cardKey);
+    if (sSlot) {
+      sSlot.remaining += rSlot.remaining;
+    } else {
+      this.shop.push({ ...rSlot });
+    }
+    this.reserve = this.reserve.filter(c => c.key !== cardKey);
+    return true;
+  }
+
+  shopCardSoldOut(cardKey) {
+    const slot = this.shop.find(c => c.key === cardKey);
+    return slot ? slot.remaining === 0 : false;
+  }
 }
 
 module.exports = { CardMarket };

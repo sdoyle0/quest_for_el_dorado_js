@@ -3,7 +3,7 @@
 // stripped of all Godot scene/UI concerns.
 // The server owns all authoritative game state.
 
-const { GameState: GS, CardEffect, TerrainType, TRANSMITTER_PURCHASE_POWER } = require('../../shared/constants');
+const { GamePhase: GS, CardEffect, TerrainType, TRANSMITTER_PURCHASE_POWER } = require('../../shared/constants');
 const { HexBoard } = require('./HexBoard');
 const { Player } = require('./Player');
 

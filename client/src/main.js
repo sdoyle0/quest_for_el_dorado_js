@@ -1,9 +1,6 @@
 // client/src/main.js
-// Wires GameClient + HexRenderer + CardUI together.
-// This is the browser-side equivalent of Main.gd _ready() and its signal connections.
 
 document.addEventListener('DOMContentLoaded', () => {
-  // --- Screens ---
   const lobbyScreen = document.getElementById('lobby-screen');
   const gameScreen  = document.getElementById('game-screen');
   const joinBtn     = document.getElementById('join-btn');
@@ -17,13 +14,16 @@ document.addEventListener('DOMContentLoaded', () => {
     gameScreen.classList.toggle('active',  name === 'game');
   }
 
-  // --- Init subsystems ---
   const socket   = io();
   const client   = new GameClient(socket);
   const renderer = new HexRenderer(document.getElementById('hex-board'));
   const cardUI   = new CardUI();
 
-  // --- Lobby ---
+  // Track all players for pawn colors
+  const PAWN_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12'];
+  let allPlayers = [];
+
+  // ── Lobby ──────────────────────────────────────────────────────────────────
   joinBtn.addEventListener('click', () => {
     const name = nameInput.value.trim() || 'Explorer';
     lobbyStatus.textContent = 'Looking for a game...';
@@ -31,95 +31,71 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   client.onJoined = ({ roomId }) => {
-    lobbyStatus.textContent = `Joined room ${roomId}. Waiting for opponent...`;
+    lobbyStatus.textContent = `Joined room ${roomId}. Waiting for opponent…`;
   };
 
   client.onPlayerJoined = ({ player }) => {
-    log(`${player.name} joined the game.`);
+    log(`${player.name} joined.`);
   };
 
-  // --- Game start ---
-  client.onGameStarted = ({ players, currentPlayerId, market }) => {
+  // ── Game start — THIS is where tiles render ───────────────────────────────
+  client.onGameStarted = ({ tiles, players, currentPlayerId, market }) => {
     showScreen('game');
+    allPlayers = players;
 
-    // Render pawns at start positions
-    const colors = ['#e74c3c', '#3498db'];
+    // Render the board!
+    renderer.render(tiles);
+
+    // Place pawns on start tiles
     players.forEach((p, i) => {
-      if (p.currentTileId) {
-        renderer.setPawnPosition(p.id, p.currentTileId, colors[i]);
-      }
+      if (p.currentTileId) renderer.setPawnPosition(p.id, p.currentTileId, PAWN_COLORS[i]);
     });
 
-    cardUI.renderMarket(market.shopSlots);
-    updateTurnLabel(currentPlayerId, players);
+    cardUI.renderMarket(market);
+    updateTurnLabel(currentPlayerId);
+    log('Game started!');
   };
 
-  // --- Board interaction ---
+  // ── Board interaction ──────────────────────────────────────────────────────
   renderer.onTileClick = (tileId) => {
     client.movePawn(tileId);
   };
 
-  // --- Cards ---
-  cardUI.onCardPlayed = (cardKey) => {
-    client.playCard(cardKey);
-  };
+  // ── Cards ──────────────────────────────────────────────────────────────────
+  cardUI.onCardPlayed = (instanceId) => client.playCard(instanceId);
+  cardUI.onEndTurn    = ()            => client.endTurn();
+  cardUI.onOpenMarket = ()            => cardUI.showMarket(true);
+  cardUI.onCancelPurchase = ()        => cardUI.showMarket(false);
+  cardUI.onMarketCard = ({ cardKey, fromReserve }) => client.purchaseCard(cardKey, fromReserve);
 
-  cardUI.onEndTurn = () => {
-    client.endTurn();
-  };
-
-  cardUI.onOpenMarket = () => {
-    cardUI.showMarket(true);
-    // Server opens purchase mode when you play a non-transmitter card and click market
-    // For regular purchasing, just show the market — no card needed first
-  };
-
-  cardUI.onMarketCard = (cardKey) => {
-    client.purchaseCard(cardKey);
-  };
-
-  cardUI.onCancelPurchase = () => {
-    // TODO: emit cancel to server if server tracks purchase state
-    cardUI.showMarket(false);
-  };
-
-  cardUI.onDiscard = () => {
-    // Discard the currently played card (if any)
-    // TODO: track which card is "in play" on the client for the discard button
-  };
-
-  // --- Server events → UI updates ---
-
+  // ── Server events → UI ─────────────────────────────────────────────────────
   client.onHandUpdated = ({ hand }) => {
     cardUI.renderHand(hand);
   };
 
   client.onCardPlayed = ({ validMoves }) => {
-    renderer.setValidMoves(validMoves);
+    renderer.setValidMoves(validMoves || []);
   };
 
   client.onValidMoves = ({ validMoves }) => {
-    renderer.setValidMoves(validMoves);
+    renderer.setValidMoves(validMoves || []);
   };
 
   client.onPawnMoved = ({ playerId, tileId }) => {
-    renderer.setPawnPosition(playerId, tileId);
+    const playerIdx = allPlayers.findIndex(p => p.id === playerId);
+    renderer.setPawnPosition(playerId, tileId, PAWN_COLORS[playerIdx] || '#aaa');
     renderer.clearHighlights();
-    log(`Player moved to tile ${tileId}`);
   };
 
   client.onTurnEnded = ({ nextPlayerId, nextPlayerName }) => {
-    playerLabel.textContent = `${nextPlayerName}'s turn`;
     renderer.clearHighlights();
-
-    // Enable/disable controls based on whose turn it is
-    const isMyTurn = client.isMyTurn(nextPlayerId);
-    cardUI.setControlsEnabled(isMyTurn);
-    log(`It's now ${nextPlayerName}'s turn.`);
+    updateTurnLabel(nextPlayerId);
+    log(`${nextPlayerName}'s turn.`);
   };
 
   client.onMarketUpdated = ({ market }) => {
-    cardUI.renderMarket(market.shopSlots);
+    cardUI.renderMarket(market);
+    cardUI.showMarket(false);
   };
 
   client.onPurchaseOpened = ({ totalPurchasePower }) => {
@@ -133,38 +109,37 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   client.onPromptRemove = ({ count }) => {
-    showModal(`Choose ${count} card(s) from your hand to remove permanently.`, false);
+    showModal(`Select ${count} card(s) from your hand to permanently remove.`);
   };
 
+  client.onLogUpdated = ({ text }) => log(text);
+
   client.onGameWon = ({ playerId }) => {
-    const msg = client.isMyTurn(playerId) ? 'You reached El Dorado! You Win! 🏆' : 'Your opponent reached El Dorado. Game over.';
+    const msg = client.playerId === playerId
+      ? '🏆 You reached El Dorado! You win!'
+      : 'Your opponent reached El Dorado. Game over.';
     showModal(msg, false);
     log(msg);
   };
 
-  client.onLog = ({ message }) => log(message);
-
-  // --- Helpers ---
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function updateTurnLabel(currentPlayerId) {
+    const p = allPlayers.find(p => p.id === currentPlayerId);
+    playerLabel.textContent = p ? `${p.name}'s turn` : 'Waiting…';
+    cardUI.setControlsEnabled(client.isMyTurn(currentPlayerId));
+  }
 
   function log(msg) {
     const p = document.createElement('p');
     p.textContent = msg;
-    logEl.appendChild(p);
-    logEl.scrollTop = logEl.scrollHeight;
+    logEl.prepend(p); // newest at top
   }
 
-  function updateTurnLabel(currentPlayerId, players) {
-    const current = players.find(p => p.id === currentPlayerId);
-    if (current) playerLabel.textContent = `${current.name}'s turn`;
-    cardUI.setControlsEnabled(client.isMyTurn(currentPlayerId));
-  }
-
-  function showModal(message, showCancel = true) {
+  function showModal(message, showCancel = false) {
     const overlay = document.getElementById('modal-overlay');
     document.getElementById('modal-message').textContent = message;
     document.getElementById('modal-cancel-btn').style.display = showCancel ? '' : 'none';
     overlay.classList.remove('hidden');
-
     document.getElementById('modal-confirm-btn').onclick = () => overlay.classList.add('hidden');
     document.getElementById('modal-cancel-btn').onclick  = () => overlay.classList.add('hidden');
   }

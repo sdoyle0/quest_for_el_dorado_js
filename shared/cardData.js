@@ -1,179 +1,124 @@
 // shared/cardData.js
-// Card definitions. Mirrors your CardData.gd resource files.
+// Direct port of CardLibrary.gd + CardData.gd
 //
-// TODO: Verify these against your CardData.gd:
-//   - Exact card names
-//   - Purchasing power values
-//   - Movement totals (some cards give 2 moves, not 1)
-//   - Full market card list
-//   - Any card effects I may have wrong
+// Purchasing power (from CardData.getPurchasingPower()):
+//   - village terrain cards → purchasing power = movementTotal
+//   - all other cards       → purchasing power = 0.5  (need 2 to = 1 gold)
 //
-// Each card:
-//   key             — unique identifier (matches CARD_KEYS in constants.js)
-//   cardName        — display name
-//   movementTerrain — which terrain it moves on ('jungle','water','wild', etc.) null if non-movement
-//   movementTotal   — total movement points the card provides (0 if not a movement card)
-//   purchasingPower — gold value when used to buy from market
-//   cost            — how much gold it costs to buy from the market (0 = not for sale / starter)
-//   specialEffect   — from CardEffect enum, or 'none'
+// oneTimeUse list (from multiplayer_service._is_card_type_one_time_use):
+//   GIANT_MACHETE, TREASURE_CHEST, PROP_PLANE, TRANSMITTER, COMPASS, TRAVEL_LOG
 
+// Color strings for UI rendering (from CardLibrary.gd)
+const CARD_COLORS = {
+  green:  '#007600',
+  blue:   '#0000ff',
+  yellow: '#eac200',
+  purple: '#9200c8',
+  black:  '#222222',
+};
+
+// All card definitions — mirrors _add_card_data() calls in CardLibrary.gd
 const CARD_DEFINITIONS = [
 
-  // ── STARTER DECK (cost: 0, not purchasable) ──────────────────────────────
-  // TODO: Verify exact counts — the starter deck builder in your code will tell us
-  {
-    key: 'machete',
-    cardName: 'Machete',
-    movementTerrain: 'jungle',
-    movementTotal: 1,
-    purchasingPower: 0,
-    cost: 0,
-    specialEffect: 'none',
-  },
-  {
-    key: 'paddle',
-    cardName: 'Paddle',
-    movementTerrain: 'water',
-    movementTotal: 1,
-    purchasingPower: 0,
-    cost: 0,
-    specialEffect: 'none',
-  },
-  {
-    key: 'coin',
-    cardName: 'Coin',
-    movementTerrain: null,
-    movementTotal: 0,
-    purchasingPower: 1,
-    cost: 0,
-    specialEffect: 'none',
-  },
-  {
-    key: 'traveler',
-    cardName: 'Traveler',
-    movementTerrain: 'wild',   // TODO: verify — might be 'jungle' with movement 2, or truly wild
-    movementTotal: 1,
-    purchasingPower: 0,
-    cost: 0,
-    specialEffect: 'none',
-  },
+  // ── GREEN (Jungle movement) ────────────────────────────────────────────────
+  { key:'explorer',      cardName:'Explorer',      color:'green',  cost:0, oneTimeUse:false, specialEffect:'none',         movementTerrain:'jungle',  movementTotal:1 },
+  { key:'scout',         cardName:'Scout',          color:'green',  cost:1, oneTimeUse:false, specialEffect:'none',         movementTerrain:'jungle',  movementTotal:2 },
+  { key:'trailblazer',   cardName:'Trailblazer',    color:'green',  cost:3, oneTimeUse:false, specialEffect:'none',         movementTerrain:'jungle',  movementTotal:3 },
+  { key:'pioneer',       cardName:'Pioneer',        color:'green',  cost:5, oneTimeUse:false, specialEffect:'none',         movementTerrain:'jungle',  movementTotal:5 },
+  { key:'giant_machete', cardName:'Giant Machete',  color:'green',  cost:3, oneTimeUse:true,  specialEffect:'none',         movementTerrain:'jungle',  movementTotal:6 },
 
-  // ── MARKET CARDS ──────────────────────────────────────────────────────────
-  // TODO: Fill in from CardData.gd — these are approximate based on the real game
-  {
-    key: 'explorer',
-    cardName: 'Explorer',
-    movementTerrain: 'wild',
-    movementTotal: 1,
-    purchasingPower: 1,
-    cost: 3,
-    specialEffect: 'none',
-  },
-  {
-    key: 'journalist',
-    cardName: 'Journalist',
-    movementTerrain: 'jungle',
-    movementTotal: 2,
-    purchasingPower: 0,
-    cost: 4,
-    specialEffect: 'none',
-  },
-  {
-    key: 'photographer',
-    cardName: 'Photographer',
-    movementTerrain: 'water',
-    movementTotal: 2,
-    purchasingPower: 0,
-    cost: 4,
-    specialEffect: 'none',
-  },
-  {
-    key: 'cartographer',
-    cardName: 'Cartographer',
-    movementTerrain: 'jungle',
-    movementTotal: 1,
-    purchasingPower: 0,
-    cost: 5,
-    specialEffect: 'cartographer',  // draw 2
-  },
-  {
-    key: 'compass',
-    cardName: 'Compass',
-    movementTerrain: 'wild',
-    movementTotal: 1,
-    purchasingPower: 0,
-    cost: 4,
-    specialEffect: 'compass',       // draw 3
-  },
-  {
-    key: 'scientist',
-    cardName: 'Scientist',
-    movementTerrain: 'wild',
-    movementTotal: 1,
-    purchasingPower: 0,
-    cost: 5,
-    specialEffect: 'scientist',     // draw 1, remove 1
-  },
-  {
-    key: 'travel_log',
-    cardName: 'Travel Log',
-    movementTerrain: 'wild',
-    movementTotal: 1,
-    purchasingPower: 1,
-    cost: 6,
-    specialEffect: 'travel_log',    // draw 2, remove 2
-  },
-  {
-    key: 'transmitter',
-    cardName: 'Transmitter',
-    movementTerrain: null,
-    movementTotal: 0,
-    purchasingPower: 0,
-    cost: 7,
-    specialEffect: 'transmitter',   // free purchase worth 20
-  },
-  {
-    key: 'native',
-    cardName: 'Native Guide',
-    movementTerrain: 'wild',
-    movementTotal: 1,
-    purchasingPower: 0,
-    cost: 5,
-    specialEffect: 'native',        // ignore terrain restrictions
-  },
+  // ── BLUE (Water movement) ─────────────────────────────────────────────────
+  { key:'sailor',        cardName:'Sailor',         color:'blue',   cost:0, oneTimeUse:false, specialEffect:'none',         movementTerrain:'water',   movementTotal:1 },
+  { key:'captain',       cardName:'Captain',        color:'blue',   cost:2, oneTimeUse:false, specialEffect:'none',         movementTerrain:'water',   movementTotal:2 },
+
+  // ── YELLOW (Village / purchasing power) ───────────────────────────────────
+  { key:'traveler',      cardName:'Traveler',       color:'yellow', cost:0, oneTimeUse:false, specialEffect:'none',         movementTerrain:'village', movementTotal:1 },
+  { key:'photographer',  cardName:'Photographer',   color:'yellow', cost:2, oneTimeUse:false, specialEffect:'none',         movementTerrain:'village', movementTotal:2 },
+  { key:'journalist',    cardName:'Journalist',     color:'yellow', cost:3, oneTimeUse:false, specialEffect:'none',         movementTerrain:'village', movementTotal:3 },
+  { key:'treasure_chest',cardName:'Treasure Chest', color:'yellow', cost:3, oneTimeUse:true,  specialEffect:'none',         movementTerrain:'village', movementTotal:4 },
+  { key:'millionaire',   cardName:'Millionaire',    color:'yellow', cost:5, oneTimeUse:false, specialEffect:'none',         movementTerrain:'village', movementTotal:4 },
+
+  // ── BLACK (Wild movement) ─────────────────────────────────────────────────
+  { key:'jack_of_all_trades',cardName:'Jack-of-all-Trades',color:'black',cost:2,oneTimeUse:false,specialEffect:'none',  movementTerrain:'wild',    movementTotal:1 },
+  { key:'adventurer',    cardName:'Adventurer',     color:'black',  cost:4, oneTimeUse:false, specialEffect:'none',         movementTerrain:'wild',    movementTotal:2 },
+  { key:'prop_plane',    cardName:'Prop Plane',     color:'black',  cost:4, oneTimeUse:true,  specialEffect:'none',         movementTerrain:'wild',    movementTotal:4 },
+
+  // ── PURPLE (Special effects — no terrain movement) ─────────────────────────
+  { key:'transmitter',   cardName:'Transmitter',    color:'purple', cost:4, oneTimeUse:true,  specialEffect:'transmitter',  movementTerrain:'empty',   movementTotal:0 },
+  { key:'cartographer',  cardName:'Cartographer',   color:'purple', cost:4, oneTimeUse:false, specialEffect:'cartographer', movementTerrain:'empty',   movementTotal:0 },
+  { key:'compass',       cardName:'Compass',        color:'purple', cost:2, oneTimeUse:true,  specialEffect:'compass',      movementTerrain:'empty',   movementTotal:0 },
+  { key:'scientist',     cardName:'Scientist',      color:'purple', cost:4, oneTimeUse:false, specialEffect:'scientist',    movementTerrain:'empty',   movementTotal:0 },
+  { key:'travel_log',    cardName:'Travel Log',     color:'purple', cost:3, oneTimeUse:true,  specialEffect:'travel_log',   movementTerrain:'empty',   movementTotal:0 },
+  { key:'native',        cardName:'Native',         color:'purple', cost:5, oneTimeUse:false, specialEffect:'native',       movementTerrain:'empty',   movementTotal:0 },
 ];
 
-// ── STARTER DECK COMPOSITION ────────────────────────────────────────────────
-// TODO: Verify exact counts from your CardData.gd / deck builder script
-// Standard El Dorado starter deck is typically 10 cards:
+// Mirrors CardData.getPurchasingPower()
+function getPurchasingPower(card) {
+  if (card.movementTerrain === 'village') return card.movementTotal;
+  return 0.5;
+}
+
+// ── STARTER DECK ──────────────────────────────────────────────────────────────
+// From multiplayer_service._get_player_starter_deck():
+//   3x EXPLORER, 4x TRAVELER, 1x SAILOR  (8 cards total, draw 4 per turn)
 const STARTER_DECK_TEMPLATE = [
-  { key: 'machete', count: 4 },
-  { key: 'paddle',  count: 3 },
-  { key: 'coin',    count: 2 },
-  { key: 'traveler',count: 1 },
+  { key: 'explorer',  count: 3 },
+  { key: 'traveler',  count: 4 },
+  { key: 'sailor',    count: 1 },
 ];
 
-// Build a full starter deck array (with duplicates) from the template
 function buildStarterDeck() {
   const cardMap = new Map(CARD_DEFINITIONS.map(c => [c.key, c]));
   const deck = [];
   for (const { key, count } of STARTER_DECK_TEMPLATE) {
     const def = cardMap.get(key);
-    if (!def) continue;
+    if (!def) { console.error('Unknown card key in starter deck:', key); continue; }
     for (let i = 0; i < count; i++) {
-      // Each card instance gets a unique instanceId so duplicates are distinct
-      deck.push({ ...def, instanceId: `${key}-${i}` });
+      deck.push({ ...def, purchasingPower: getPurchasingPower(def), instanceId: `${key}-${i}` });
     }
   }
   return deck;
 }
 
-// Market card pool (cards available to purchase in the shop)
-// Excludes starter cards
-const MARKET_CARD_POOL = CARD_DEFINITIONS.filter(c => c.cost > 0);
+// ── SHOP / RESERVE SETUP ──────────────────────────────────────────────────────
+// From multiplayer_service._initialize_shop_cards_on_server()
+const INITIAL_SHOP = [
+  { key: 'scout',             count: 3 },
+  { key: 'trailblazer',       count: 3 },
+  { key: 'jack_of_all_trades',count: 3 },
+  { key: 'photographer',      count: 3 },
+  { key: 'treasure_chest',    count: 3 },
+  { key: 'transmitter',       count: 3 },
+];
+
+const INITIAL_RESERVE = [
+  { key: 'pioneer',       count: 3 },
+  { key: 'giant_machete', count: 3 },
+  { key: 'captain',       count: 3 },
+  { key: 'journalist',    count: 3 },
+  { key: 'millionaire',   count: 3 },
+  { key: 'adventurer',    count: 3 },
+  { key: 'prop_plane',    count: 3 },
+  { key: 'cartographer',  count: 3 },
+  { key: 'compass',       count: 3 },
+  { key: 'scientist',     count: 3 },
+  { key: 'travel_log',    count: 3 },
+  { key: 'native',        count: 3 },
+];
+
+// Build shop/reserve as { cardKey: count } maps, matching GDScript structure
+function buildShopState() {
+  const cardMap = new Map(CARD_DEFINITIONS.map(c => [c.key, c]));
+  const toSlots = (template) => template.map(({ key, count }) => ({
+    ...cardMap.get(key),
+    purchasingPower: getPurchasingPower(cardMap.get(key)),
+    remaining: count,
+  }));
+  return { shop: toSlots(INITIAL_SHOP), reserve: toSlots(INITIAL_RESERVE) };
+}
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { CARD_DEFINITIONS, STARTER_DECK_TEMPLATE, buildStarterDeck, MARKET_CARD_POOL };
+  module.exports = { CARD_DEFINITIONS, CARD_COLORS, buildStarterDeck, buildShopState, getPurchasingPower };
 } else {
-  window.ElDoradoCards = { CARD_DEFINITIONS, STARTER_DECK_TEMPLATE, buildStarterDeck, MARKET_CARD_POOL };
+  window.ElDoradoCards = { CARD_DEFINITIONS, CARD_COLORS, buildStarterDeck, buildShopState, getPurchasingPower };
 }
