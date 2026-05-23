@@ -45,7 +45,7 @@ class CardUI {
 
   renderMarket(shopSlots) {
     this.shopEl.innerHTML = '';
-    for (const card of shopSlots) {
+    for (const card of shopSlots.shop) {
       if (!card) {
         const empty = document.createElement('div');
         empty.className = 'market-card empty';
