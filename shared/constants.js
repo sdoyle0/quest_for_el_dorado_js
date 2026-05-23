@@ -23,7 +23,7 @@ const CardEffect = {
   NATIVE:       'native',       // move to any adjacent passable tile
 };
 
-const GamePhase = {
+const GameState = {
   AWAITING_CARD: 'awaiting_card',
   AWAITING_MOVE: 'awaiting_move',
   TURN_END:      'turn_end',
@@ -63,7 +63,7 @@ const CARD_KEYS = {
 const TRANSMITTER_PURCHASE_POWER = 20;
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { TerrainType, CardEffect, GamePhase, CARD_KEYS, TRANSMITTER_PURCHASE_POWER };
+  module.exports = { TerrainType, CardEffect, GameState, CARD_KEYS, TRANSMITTER_PURCHASE_POWER };
 } else {
-  window.ElDoradoConstants = { TerrainType, CardEffect, GamePhase, CARD_KEYS, TRANSMITTER_PURCHASE_POWER };
+  window.ElDoradoConstants = { TerrainType, CardEffect, GameState, CARD_KEYS, TRANSMITTER_PURCHASE_POWER };
 }
