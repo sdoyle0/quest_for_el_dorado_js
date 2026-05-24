@@ -65,8 +65,8 @@ class GameClient {
 
   // --- Actions (mirrors RPC calls) ---
 
-  joinGame(playerName, debugMode = false) {
-    this.socket.emit('join_game', { playerName, debugMode });
+  joinGame(playerName) {
+    this.socket.emit('join_game', { playerName });
   }
 
   playCard(instanceId) {

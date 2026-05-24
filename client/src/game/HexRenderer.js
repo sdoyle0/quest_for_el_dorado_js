@@ -85,6 +85,8 @@ class HexRenderer {
     poly.setAttribute('stroke', style.stroke);
     poly.setAttribute('stroke-width', '2');
     poly.style.transition = 'filter 0.1s';
+    g.appendChild(poly);
+    
 
     const icon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     icon.setAttribute('x', cx);
@@ -95,22 +97,23 @@ class HexRenderer {
     icon.setAttribute('pointer-events', 'none');
     icon.textContent = style.label;
 
+    g.appendChild(icon);
+
     // Cost badge for multi-move tiles
     if (tile.movementCost > 1 && tile.terrainType !== 'mountain') {
       const badge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      badge.setAttribute('x', cx + 22);
-      badge.setAttribute('y', cy - 22);
+      icon.setAttribute('y', cy - 5);
+      badge.setAttribute('x', cx);
+      badge.setAttribute('y', cy + 24);
       badge.setAttribute('text-anchor', 'middle');
-      badge.setAttribute('font-size', '12');
+      badge.setAttribute('font-size', '24');
       badge.setAttribute('fill', '#fff');
       badge.setAttribute('font-weight', 'bold');
       badge.setAttribute('pointer-events', 'none');
       badge.textContent = `×${tile.movementCost}`;
       g.appendChild(badge);
     }
-
-    g.appendChild(poly);
-    g.appendChild(icon);
+    
     g.addEventListener('click', () => this.onTileClick?.(tile.id));
 
     this.svg.appendChild(g);

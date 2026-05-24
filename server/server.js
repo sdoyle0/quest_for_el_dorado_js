@@ -37,13 +37,12 @@ io.on('connection', (socket) => {
   console.log(`[connect] ${socket.id}`);
 
   // --- Lobby ---
-  socket.on('join_game', ({ playerName, debugMode = false }) => {
-    const { room, player } = gameManager.joinOrCreateRoom(socket, playerName, { debugMode });
+  socket.on('join_game', ({ playerName }) => {
+    const { room, player } = gameManager.joinOrCreateRoom(socket, playerName);
     socket.emit('joined_room', {
       roomId: room.roomId,
       playerId: player.id,
       playerNumber: player.playerNumber,
-      debugMode,
     });
   });
 

@@ -197,6 +197,10 @@ body {
 #modal-confirm-btn { background: #ffd700; color: #1a1a2e; font-weight: bold; }
 #modal-cancel-btn  { background: #555; color: #fff; }
 
+.card-btn.terrain-water { background: #0000ffbb;}
+.card-btn.terrain-village { background: #eac200bb; }
+.card-btn.terrain-jungle { background: #007600bb; }  
+
 /* Purchase pool selection */
 .card-btn.in-pool {
   border-color: #ffd700;

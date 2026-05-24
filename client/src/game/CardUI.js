@@ -94,7 +94,7 @@ class CardUI {
 
   _makeCardButton(card, inPool = false) {
     const btn = document.createElement('button');
-    btn.className = 'card-btn' + (inPool ? ' in-pool' : '');
+    btn.className = 'card-btn' + (inPool ? ' in-pool' : '') + (card.movementTerrain ? ` terrain-${card.movementTerrain}` : '');
     btn.dataset.instanceId = card.instanceId;
 
     const terrainLabel = card.movementTerrain && card.movementTerrain !== 'empty'

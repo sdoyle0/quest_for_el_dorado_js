@@ -26,28 +26,28 @@ document.addEventListener('DOMContentLoaded', () => {
   if (DEBUG) {
     document.title += ' [DEBUG]';
     // Small delay so socket is ready
-    setTimeout(() => client.joinGame('Debug Player', true), 100);
+    setTimeout(() => client.joinGame('Debug Player'), 100);
   }
 
   // ── Lobby ──────────────────────────────────────────────────────────────────
   joinBtn.addEventListener('click', () => {
     const name = nameInput.value.trim() || 'Explorer';
     lobbyStatus.textContent = 'Looking for a game...';
-    client.joinGame(name, false);
+    client.joinGame(name);
   });
 
-  client.onJoined = ({ roomId, debugMode }) => {
-    if (debugMode) {
-      lobbyStatus.textContent = `Debug room ${roomId} — starting solo...`;
-    } else {
-      lobbyStatus.textContent = `Joined room ${roomId}. Waiting for opponent…`;
+  client.onJoined = ({ roomId }) => {
+    lobbyStatus.textContent = `Joined room ${roomId}. Waiting for opponent…`;
+
+    if (DEBUG) {
+      updateTurnLabel(client.playerId);
     }
   };
 
   client.onPlayerJoined = ({ player }) => log(`${player.name} joined.`);
 
   // ── Game start ─────────────────────────────────────────────────────────────
-  client.onGameStarted = ({ tiles, players, currentPlayerId, market, debugMode }) => {
+  client.onGameStarted = ({ tiles, players, currentPlayerId, market }) => {
     showScreen('game');
     allPlayers = players;
 
@@ -60,18 +60,14 @@ document.addEventListener('DOMContentLoaded', () => {
     cardUI.renderMarket(market);
     updateTurnLabel(currentPlayerId);
 
-    if (debugMode) {
-      log('🛠 Debug mode — solo game started');
-    } else {
-      log('Game started!');
-    }
+    log('Game started!');
   };
 
   // ── Board ──────────────────────────────────────────────────────────────────
   renderer.onTileClick = (tileId) => client.movePawn(tileId);
 
   // ── Cards ──────────────────────────────────────────────────────────────────
-  cardUI.onCardPlayed     = (instanceId) => client.playCard(instanceId);
+  cardUI.onCardPlayed     = (instanceId)  => client.playCard(instanceId);
   cardUI.onEndTurn        = ()            => client.endTurn();
   cardUI.onOpenMarket     = ()            => cardUI.showMarket(true);
   cardUI.onCancelPurchase = ()            => cardUI.showMarket(false);

@@ -7,13 +7,14 @@ const { Player } = require('./Player');
 const { MARKET_CARD_POOL } = require('../../shared/cardData');
 const MAP_DATA = require('../../shared/mapData.json');
 
+const DEBUG = true;
+
 class GameRoom {
-  constructor(roomId, io, { debugMode = false } = {}) {
+  constructor(roomId, io) {
     this.roomId     = roomId;
     this.io         = io;
     this.players    = [];
-    this.maxPlayers = debugMode ? 1 : 2;
-    this.debugMode  = debugMode;
+    this.maxPlayers = DEBUG ? 1 : 2;
     this.started    = false;
 
     this.board     = new HexBoard();
@@ -66,8 +67,7 @@ class GameRoom {
       tiles:           [...this.board.tiles.values()].map(t => ({ ...t })),
       players:         this.players.map(p => p.toPublicData()),
       currentPlayerId: this.gameState.currentPlayer?.id,
-      market:          this.market.getShopState(),
-      debugMode:       this.debugMode,
+      market:          this.market.getShopState()
     });
 
     // Send each player their private hand
@@ -112,14 +112,11 @@ class GameManager {
     return room;
   }
 
-  joinOrCreateRoom(socket, playerName, { debugMode = false } = {}) {
+  joinOrCreateRoom(socket, playerName) {
     let room;
-    if (debugMode) {
-      room = this.createRoom({ debugMode: true });
-    } else {
-      room = [...this.rooms.values()].find(r => !r.started && !r.debugMode && r.players.length < r.maxPlayers);
-      if (!room) room = this.createRoom();
-    }
+    room = [...this.rooms.values()].find(r => !r.started && r.players.length < r.maxPlayers);
+    if (!room) room = this.createRoom();
+    
     const player = room.addPlayer(socket, playerName);
     if (player) this.playerRooms.set(socket.id, room.roomId);
     return { room, player };
