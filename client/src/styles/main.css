@@ -45,15 +45,56 @@ body {
 /* Game layout */
 #game-screen { flex-direction: row; }
 
-#board-container {
+#board-and-hand-container {
   flex: 1;
-  overflow: auto;
   background: #0d1b2a;
   display: flex;
   flex-direction: column;
 }
 
-#hex-board { width: 100%; height: 100%; }
+#board-container {
+  flex: 1;
+  display: flex;
+  overflow: auto;
+}
+
+#hex-board {
+  width: 100%;
+  height: 100%;
+  transform-origin: top left;
+  transform: scale(1);
+}
+
+#zoom-controls {
+  position: sticky;
+  top: 0.75rem;
+  align-self: flex-start;
+  margin-left: auto;
+  margin-right: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+  z-index: 10;
+}
+
+.zoom-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(22, 33, 62, 0.92);
+  color: #ffd700;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.08);
+  transition: background .15s, transform .15s;
+}
+
+.zoom-btn:hover {
+  background: rgba(39, 64, 96, 0.95);
+  transform: translateY(-1px);
+}
 
 /* HUD sidebar */
 #hud {

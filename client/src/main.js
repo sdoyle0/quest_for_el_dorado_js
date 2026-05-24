@@ -8,6 +8,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const lobbyStatus = document.getElementById('lobby-status');
   const playerLabel = document.getElementById('current-player-label');
   const logEl       = document.getElementById('game-log');
+  const boardEl     = document.getElementById('hex-board');
+  const zoomInBtn   = document.getElementById('zoom-in-btn');
+  const zoomOutBtn  = document.getElementById('zoom-out-btn');
+
+  let boardZoom = 1;
+  const BOARD_ZOOM_STEP = 0.25;
+  const BOARD_ZOOM_MIN = 0.5;
+  const BOARD_ZOOM_MAX = 2.5;
+
+  function updateBoardZoom() {
+    boardEl.style.transform = `scale(${boardZoom})`;
+  }
 
   function showScreen(name) {
     lobbyScreen.classList.toggle('active', name === 'lobby');
@@ -18,9 +30,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const client   = new GameClient(socket);
   const renderer = new HexRenderer(document.getElementById('hex-board'));
   const cardUI   = new CardUI();
+  const clientBoard = new ElDoradoHexBoard.HexBoard();
 
   const PAWN_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12'];
   let allPlayers = [];
+  let localHand = [];
+  let selectedCard = null;
+  let selectedValidMoves = [];
 
   // ── Debug mode: auto-join immediately on page load ─────────────────────────
   if (DEBUG) {
@@ -34,6 +50,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const name = nameInput.value.trim() || 'Explorer';
     lobbyStatus.textContent = 'Looking for a game...';
     client.joinGame(name);
+  });
+
+  zoomInBtn?.addEventListener('click', () => {
+    boardZoom = Math.min(BOARD_ZOOM_MAX, boardZoom + BOARD_ZOOM_STEP);
+    updateBoardZoom();
+  });
+
+  zoomOutBtn?.addEventListener('click', () => {
+    boardZoom = Math.max(BOARD_ZOOM_MIN, boardZoom - BOARD_ZOOM_STEP);
+    updateBoardZoom();
   });
 
   client.onJoined = ({ roomId }) => {
@@ -50,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
   client.onGameStarted = ({ tiles, players, currentPlayerId, market }) => {
     showScreen('game');
     allPlayers = players;
+    clientBoard.loadMap({ tiles });
 
     renderer.render(tiles);
 
@@ -60,21 +87,36 @@ document.addEventListener('DOMContentLoaded', () => {
     cardUI.renderMarket(market);
     updateTurnLabel(currentPlayerId);
 
+    selectedCard = null;
+    selectedValidMoves = [];
+
     log('Game started!');
   };
 
   // ── Board ──────────────────────────────────────────────────────────────────
-  renderer.onTileClick = (tileId) => client.movePawn(tileId);
+  renderer.onTileClick = (tileId) => {
+    if (selectedCard && selectedValidMoves.includes(tileId)) {
+      client.executeMove(selectedCard.instanceId, tileId);
+      return;
+    }
+    log('Select a card first, then click a highlighted tile.');
+  };
 
   // ── Cards ──────────────────────────────────────────────────────────────────
-  cardUI.onCardPlayed     = (instanceId)  => client.playCard(instanceId);
+  cardUI.onCardPlayed     = (instanceId)  => selectCardForMove(instanceId);
   cardUI.onEndTurn        = ()            => client.endTurn();
   cardUI.onOpenMarket     = ()            => cardUI.showMarket(true);
   cardUI.onCancelPurchase = ()            => cardUI.showMarket(false);
   cardUI.onMarketCard     = ({ cardKey, handCardsUsed }) => client.purchaseCard(cardKey, handCardsUsed);
 
   // ── Server → UI events ─────────────────────────────────────────────────────
-  client.onHandUpdated = ({ hand }) => cardUI.renderHand(hand);
+  client.onHandUpdated = ({ hand }) => {
+    localHand = hand;
+    selectedCard = null;
+    selectedValidMoves = [];
+    renderer.clearHighlights();
+    cardUI.renderHand(hand);
+  };
 
   client.onCardPlayed = ({ validMoves }) => {
     renderer.setValidMoves(validMoves || []);
@@ -85,18 +127,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   client.onPawnMoved = ({ playerId, tileId }) => {
     const idx = allPlayers.findIndex(p => p.id === playerId);
+    const player = allPlayers.find(p => p.id === playerId);
+    if (player) player.currentTileId = tileId;
     renderer.setPawnPosition(playerId, tileId, PAWN_COLORS[idx] || '#aaa');
+    selectedCard = null;
+    selectedValidMoves = [];
     renderer.clearHighlights();
     log(`Moved to ${tileId}`);
   };
 
-  client.onCardDisposed = ({ hand }) => {
-    // Card finished — update hand display
-    cardUI.renderHand(hand);
+  client.onCardDisposed = () => {
+    // Card finished — the server also sends a hand_updated event separately.
+    selectedCard = null;
+    selectedValidMoves = [];
     renderer.clearHighlights();
   };
 
   client.onTurnEnded = ({ nextPlayerId, nextPlayerName }) => {
+    selectedCard = null;
+    selectedValidMoves = [];
     renderer.clearHighlights();
     updateTurnLabel(nextPlayerId);
     log(`${nextPlayerName}'s turn.`);
@@ -114,7 +163,47 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Show server-side errors in the log rather than silently swallowing them
-  client.onActionError = ({ message }) => log(`⚠ ${message}`);
+  client.onActionError = ({ message }) => {
+    selectedCard = null;
+    selectedValidMoves = [];
+    renderer.clearHighlights();
+    log(`⚠ ${message}`);
+  };
+
+  function selectCardForMove(instanceId) {
+    const card = localHand.find(c => c.instanceId === instanceId);
+    if (!card) return;
+
+    const player = allPlayers.find(p => p.id === client.playerId);
+    if (!player) {
+      log('Unable to select card: player state is not ready.');
+      return;
+    }
+
+    if (card.movementTotal > 0 || card.specialEffect === ElDoradoConstants.CardEffect.NATIVE) {
+      const moves = clientBoard.getValidMoves({
+        currentTileId: player.currentTileId,
+        playedCard: card,
+        movesRemaining: card.movementTotal,
+        wildCardTerrain: null,
+        players: allPlayers,
+        handSize: localHand.length,
+      });
+
+      selectedCard = card;
+      selectedValidMoves = moves;
+      renderer.setValidMoves(moves);
+
+      if (moves.length === 0) {
+        log('No valid moves available for that card.');
+      } else {
+        log(`Selected ${card.cardName || card.key}: ${moves.length} target(s) available.`);
+      }
+      return;
+    }
+
+    client.playCard(instanceId);
+  }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   function updateTurnLabel(currentPlayerId) {

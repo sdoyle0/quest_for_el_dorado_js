@@ -7,7 +7,7 @@ const { Player } = require('./Player');
 const { MARKET_CARD_POOL } = require('../../shared/cardData');
 const MAP_DATA = require('../../shared/mapData.json');
 
-const DEBUG = true;
+const DEBUG = false;
 
 class GameRoom {
   constructor(roomId, io) {
@@ -78,11 +78,17 @@ class GameRoom {
 
   handlePlayCard(socketId, instanceId) {
     const result = this.gameState.playCard(socketId, instanceId);
-    if (!result.ok) this.io.to(socketId).emit('error', { message: result.error });
+    if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
   }
+
+  handleExecuteMove(socketId, instanceId, tileId) {
+    const result = this.gameState.playCardAndMove(socketId, instanceId, tileId);
+    if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
+  }
+
   handleMovePawn(socketId, tileId) {
     const result = this.gameState.movePawn(socketId, tileId);
-    if (!result.ok) this.io.to(socketId).emit('error', { message: result.error });
+    if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
   }
   handleEndTurn(socketId) {
     const result = this.gameState.endTurn(socketId);

@@ -151,4 +151,13 @@ class HexRenderer {
     circle.setAttribute('data-pawn', playerId);
     this.svg.appendChild(circle);
   }
+
+  setScale(s) {
+    const clamped = Math.max(0.2, Math.min(4, Number(s) || 1));
+    this.scale = clamped;
+    if (this._lastExtents) {
+      this.svg.style.width = (this._lastExtents.w * this.scale) + 'px';
+      this.svg.style.height = (this._lastExtents.h * this.scale) + 'px';
+    }
+  }
 }

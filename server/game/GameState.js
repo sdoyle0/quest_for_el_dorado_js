@@ -62,6 +62,41 @@ class GameStateManager {
     return { ok: true };
   }
 
+  playCardAndMove(playerId, instanceId, tileId) {
+    if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
+    if (this.state !== GS.AWAITING_CARD)  return { ok: false, error: 'wrong state' };
+
+    const player = this.currentPlayer;
+    const card   = player.hand.find(c => c.instanceId === instanceId || c.key === instanceId);
+    if (!card) return { ok: false, error: 'card not in hand' };
+
+    // Only commit move immediately for cards that can actually move.
+    if (card.movementTotal <= 0 && card.specialEffect !== CardEffect.NATIVE) {
+      return { ok: false, error: 'card cannot be used to move' };
+    }
+
+    const validMoves = this.board.getValidMoves({
+      currentTileId:  player.currentTileId,
+      playedCard:     card,
+      movesRemaining: card.movementTotal,
+      wildCardTerrain:this.wildCardTerrain,
+      players:        this.players,
+      handSize:       player.hand.length,
+    });
+
+    if (!validMoves.includes(tileId)) {
+      return { ok: false, error: 'invalid move' };
+    }
+
+    const playResult = this.playCard(playerId, instanceId);
+    if (!playResult.ok) return playResult;
+
+    const moveResult = this.movePawn(playerId, tileId);
+    if (!moveResult.ok) return moveResult;
+
+    return { ok: true };
+  }
+
   // ── Move pawn to a tile ────────────────────────────────────────────────────
   movePawn(playerId, tileId) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };

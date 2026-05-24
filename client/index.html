@@ -20,19 +20,23 @@
   <div id="game-screen" class="screen">
 
     <!-- Board area — SVG hex map renders here -->
-    <div id="board-container">
-      <svg id="hex-board" xmlns="http://www.w3.org/2000/svg"></svg>
-
-
-      <!-- Player hand -->
-      <div id="player-hand-ui">
-        <div id="hand-cards"></div>
-        <div id="hand-controls">
-          <button id="open-market-btn">Market</button>
-          <button id="end-turn-btn">End Turn</button>
-          <button id="discard-btn">Discard Card</button>
+    <div id="board-and-hand-container">
+      <div id="board-container">
+        <div id="zoom-controls" class="zoom-controls">
+          <button id="zoom-out-btn" class="zoom-btn" aria-label="Zoom out">−</button>
+          <button id="zoom-in-btn" class="zoom-btn" aria-label="Zoom in">+</button>
         </div>
+        <svg id="hex-board" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
+      <!-- Player hand -->
+        <div id="player-hand-ui">
+          <div id="hand-cards"></div>
+          <div id="hand-controls">
+            <button id="open-market-btn">Market</button>
+            <button id="end-turn-btn">End Turn</button>
+            <button id="discard-btn">Discard Card</button>
+          </div>
+        </div>
     </div>
 
     <!-- HUD -->
@@ -64,6 +68,7 @@
 
   <!-- Shared constants (works without a bundler) -->
   <script src="/shared/constants.js"></script>
+  <script src="/shared/HexBoard.js"></script>
 
   <!-- Socket.io client (served by the Node server automatically) -->
   <script src="/socket.io/socket.io.js"></script>

@@ -53,6 +53,11 @@ io.on('connection', (socket) => {
     if (room) room.handlePlayCard(socket.id, instanceId);
   });
 
+  socket.on('execute_move', ({ instanceId, tileId }) => {
+    const room = gameManager.getRoomForSocket(socket.id);
+    if (room) room.handleExecuteMove(socket.id, instanceId, tileId);
+  });
+
   // Mirrors: MultiplayerService.update_player_tile
   socket.on('move_pawn', ({ tileId }) => {
     const room = gameManager.getRoomForSocket(socket.id);

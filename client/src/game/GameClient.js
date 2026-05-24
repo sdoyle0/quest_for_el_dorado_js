@@ -77,6 +77,10 @@ class GameClient {
     this.socket.emit('move_pawn', { tileId });
   }
 
+  executeMove(instanceId, tileId) {
+    this.socket.emit('execute_move', { instanceId, tileId });
+  }
+
   endTurn() {
     this.socket.emit('end_turn');
   }
