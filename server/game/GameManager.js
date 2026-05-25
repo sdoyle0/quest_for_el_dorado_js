@@ -136,7 +136,7 @@ class GameManager {
     if (debugMode) {
       room = this.createRoom({ debugMode: true });
     } else {
-      room = [...this.rooms.values()].find(r => !r.started && !r.debugMode && r.players.length < r.maxPlayers);
+      room = [...this.rooms.values()].find(r => !r.started && r.players.length < r.maxPlayers);
       if (!room) room = this.createRoom();
     }
     const player = room.addPlayer(socket, playerName);
