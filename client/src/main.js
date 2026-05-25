@@ -184,6 +184,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const card = localHand.find(c => c.instanceId === instanceId);
     if (!card) return;
 
+    cardUI.updateSelectedCardForMovement(instanceId);
+
     // Toggle deselect — clicking the selected card again clears it
     if (selectedCard && selectedCard.instanceId === instanceId) {
       selectedCard = null;

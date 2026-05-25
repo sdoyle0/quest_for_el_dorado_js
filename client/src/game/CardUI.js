@@ -21,12 +21,9 @@ class CardUI {
   }
 
   _bindControls() {
-    document.getElementById('end-turn-btn')
-      .addEventListener('click', () => this.onEndTurn?.());
-    document.getElementById('open-market-btn')
-      .addEventListener('click', () => this.openMarket());
-    document.getElementById('cancel-purchase-btn')
-      .addEventListener('click', () => this.closeMarket());
+    document.getElementById('end-turn-btn').addEventListener('click', () => this.onEndTurn?.());
+    document.getElementById('open-market-btn').addEventListener('click', () => this.openMarket());
+    document.getElementById('cancel-purchase-btn').addEventListener('click', () => this.closeMarket());
   }
 
   // ── Market open/close ──────────────────────────────────────────────────────
@@ -107,6 +104,16 @@ class CardUI {
     btn.innerHTML = `<span class="card-name">${card.cardName || card.key}</span>
       ${terrainLabel}${movesLabel}${powerLabel}`;
     return btn;
+  }
+
+  updateSelectedCardForMovement(instanceId) {
+    for (const btn of this.handEl.querySelectorAll('.card-btn')) {
+      if (btn.dataset.instanceId === instanceId) {
+        btn.classList.toggle('selected');
+      } else {
+        btn.classList.remove('selected');
+      }
+    }
   }
 
   // ── Market rendering ───────────────────────────────────────────────────────
