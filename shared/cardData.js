@@ -67,7 +67,6 @@ const STARTER_DECK_TEMPLATE = [
   { key: CARD_KEYS.EXPLORER,  count: 3 },
   { key: CARD_KEYS.TRAVELER,  count: 4 },
   { key: CARD_KEYS.SAILOR,    count: 1 },
-  { key: CARD_KEYS.TREASURE_CHEST,    count: 2 },
 ];
 
 function buildStarterDeck() {
