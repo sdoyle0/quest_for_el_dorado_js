@@ -60,11 +60,6 @@ io.on('connection', (socket) => {
     if (room) room.handleCancelCard(socket.id);
   });
 
-  socket.on('execute_move', ({ instanceId, tileId }) => {
-    const room = gameManager.getRoomForSocket(socket.id);
-    if (room) room.handleExecuteMove(socket.id, instanceId, tileId);
-  });
-
   socket.on('move_pawn', ({ tileId }) => {
     const room = gameManager.getRoomForSocket(socket.id);
     if (room) room.handleMovePawn(socket.id, tileId);

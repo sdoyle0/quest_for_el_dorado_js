@@ -13,7 +13,6 @@ class GameClient {
     // Callbacks — set by main.js
     this.onJoined         = null;
     this.onGameStarted    = null;
-    this.onCardPlayed     = null;
     this.onPawnMoved      = null;
     this.onHandUpdated    = null;
     this.onValidMoves     = null;
@@ -43,7 +42,6 @@ class GameClient {
 
     s.on('player_joined',      d => this.onPlayerJoined?.(d));
     s.on('game_started',       d => this.onGameStarted?.(d));
-    s.on('card_played',        d => this.onCardPlayed?.(d));
     s.on('pawn_moved',         d => this.onPawnMoved?.(d));
     s.on('hand_updated',       d => this.onHandUpdated?.(d));
     s.on('valid_moves_updated',d => this.onValidMoves?.(d));
@@ -73,12 +71,12 @@ class GameClient {
     this.socket.emit('play_card', { instanceId });
   }
 
-  movePawn(tileId) {
-    this.socket.emit('move_pawn', { tileId });
+  cancelCard(instanceId) {
+    this.socket.emit('cancel_card', { instanceId });
   }
 
-  executeMove(instanceId, tileId) {
-    this.socket.emit('execute_move', { instanceId, tileId });
+  movePawn(tileId) {
+    this.socket.emit('move_pawn', { tileId });
   }
 
   endTurn() {

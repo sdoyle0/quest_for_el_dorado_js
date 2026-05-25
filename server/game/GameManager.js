@@ -90,11 +90,6 @@ class GameRoom {
     if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
   }
 
-  handleExecuteMove(socketId, instanceId, tileId) {
-    const result = this.gameState.playCardAndMove(socketId, instanceId, tileId);
-    if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
-  }
-
   handleMovePawn(socketId, tileId) {
     const result = this.gameState.movePawn(socketId, tileId);
     if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });

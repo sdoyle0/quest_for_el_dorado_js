@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (selectedCard && selectedValidMoves.includes(tileId)) {
-      client.executeMove(selectedCard.instanceId, tileId);
+      client.movePawn(tileId);
       return;
     }
   };
@@ -127,11 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
       selectedCard = null;
       selectedValidMoves = [];
     }
-  };
-
-  client.onCardPlayed = ({ validMoves }) => {
-    renderer.setValidMoves(validMoves || []);
-    log(`Card played — ${(validMoves || []).length} valid moves highlighted`);
   };
 
   client.onValidMoves = ({ validMoves }) => {
@@ -197,6 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
       selectedCard = null;
       selectedValidMoves = [];
       renderer.clearHighlights();
+      client.cancelCard(instanceId);
       return;
     }
 
@@ -225,10 +221,9 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         log(`Selected ${card.cardName || card.key}: ${moves.length} target(s) available.`);
       }
-      return;
-    }
 
-    client.playCard(instanceId);
+      client.playCard(instanceId);
+    }
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
