@@ -7,14 +7,13 @@ const { Player } = require('./Player');
 const { MARKET_CARD_POOL } = require('../../shared/cardData');
 const MAP_DATA = require('../../shared/mapData.json');
 
-const DEBUG = false;
-
 class GameRoom {
-  constructor(roomId, io) {
+  constructor(roomId, io, { debugMode = false } = {}) {
     this.roomId     = roomId;
     this.io         = io;
     this.players    = [];
-    this.maxPlayers = DEBUG ? 1 : 2;
+    this.maxPlayers = debugMode ? 1 : 2;
+    this.debugMode  = debugMode;
     this.started    = false;
 
     this.board     = new HexBoard();
@@ -22,7 +21,17 @@ class GameRoom {
     this.gameState = new GameStateManager(this.board);
 
     // Wire game events → socket broadcasts
-    this.gameState.onEvent = (event, data) => this._broadcast(event, data);
+    // hand_updated carries private card data — route to owning player only
+    this.gameState.onEvent = (event, data) => {
+      if (event === 'hand_updated' && data.playerId) {
+        const owner = this.players.find(p => p.id === data.playerId);
+        if (owner) {
+          this.io.to(owner.socketId).emit('hand_updated', { hand: data.hand });
+          return;
+        }
+      }
+      this._broadcast(event, data);
+    };
   }
 
   addPlayer(socket, playerName) {
@@ -90,9 +99,13 @@ class GameRoom {
     const result = this.gameState.movePawn(socketId, tileId);
     if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
   }
+  handleCancelCard(socketId) {
+    const result = this.gameState.cancelCard(socketId);
+    if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
+  }
   handleEndTurn(socketId) {
     const result = this.gameState.endTurn(socketId);
-    if (!result.ok) this.io.to(socketId).emit('error', { message: result.error });
+    if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
   }
   handlePurchaseCard(socketId, cardKey, handCardsUsed = []) {
     const result = this.gameState.purchaseCard(socketId, cardKey, handCardsUsed, this.market);
@@ -118,11 +131,14 @@ class GameManager {
     return room;
   }
 
-  joinOrCreateRoom(socket, playerName) {
+  joinOrCreateRoom(socket, playerName, { debugMode = false } = {}) {
     let room;
-    room = [...this.rooms.values()].find(r => !r.started && r.players.length < r.maxPlayers);
-    if (!room) room = this.createRoom();
-    
+    if (debugMode) {
+      room = this.createRoom({ debugMode: true });
+    } else {
+      room = [...this.rooms.values()].find(r => !r.started && !r.debugMode && r.players.length < r.maxPlayers);
+      if (!room) room = this.createRoom();
+    }
     const player = room.addPlayer(socket, playerName);
     if (player) this.playerRooms.set(socket.id, room.roomId);
     return { room, player };

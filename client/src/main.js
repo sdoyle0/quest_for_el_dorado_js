@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let localHand = [];
   let selectedCard = null;
   let selectedValidMoves = [];
+  let isMidMove = false;
 
   // ── Debug mode: auto-join immediately on page load ─────────────────────────
   if (DEBUG) {
@@ -95,11 +96,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Board ──────────────────────────────────────────────────────────────────
   renderer.onTileClick = (tileId) => {
+    if (isMidMove && selectedValidMoves.includes(tileId)) {
+      client.movePawn(tileId);
+      return;
+    }
     if (selectedCard && selectedValidMoves.includes(tileId)) {
       client.executeMove(selectedCard.instanceId, tileId);
       return;
     }
-    log('Select a card first, then click a highlighted tile.');
   };
 
   // ── Cards ──────────────────────────────────────────────────────────────────
@@ -112,10 +116,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Server → UI events ─────────────────────────────────────────────────────
   client.onHandUpdated = ({ hand }) => {
     localHand = hand;
-    selectedCard = null;
-    selectedValidMoves = [];
-    renderer.clearHighlights();
     cardUI.renderHand(hand);
+    if (!isMidMove) {
+      selectedCard = null;
+      selectedValidMoves = [];
+    }
   };
 
   client.onCardPlayed = ({ validMoves }) => {
@@ -123,27 +128,32 @@ document.addEventListener('DOMContentLoaded', () => {
     log(`Card played — ${(validMoves || []).length} valid moves highlighted`);
   };
 
-  client.onValidMoves = ({ validMoves }) => renderer.setValidMoves(validMoves || []);
+  client.onValidMoves = ({ validMoves }) => {
+    isMidMove = true;
+    selectedValidMoves = validMoves || [];
+    renderer.setValidMoves(selectedValidMoves);
+  };
 
   client.onPawnMoved = ({ playerId, tileId }) => {
     const idx = allPlayers.findIndex(p => p.id === playerId);
     const player = allPlayers.find(p => p.id === playerId);
     if (player) player.currentTileId = tileId;
     renderer.setPawnPosition(playerId, tileId, PAWN_COLORS[idx] || '#aaa');
-    selectedCard = null;
-    selectedValidMoves = [];
     renderer.clearHighlights();
     log(`Moved to ${tileId}`);
+    // Don't clear selectedCard/isMidMove — valid_moves_updated fires if more steps remain,
+    // card_disposed fires when done
   };
 
   client.onCardDisposed = () => {
-    // Card finished — the server also sends a hand_updated event separately.
+    isMidMove = false;
     selectedCard = null;
     selectedValidMoves = [];
     renderer.clearHighlights();
   };
 
   client.onTurnEnded = ({ nextPlayerId, nextPlayerName }) => {
+    isMidMove = false;
     selectedCard = null;
     selectedValidMoves = [];
     renderer.clearHighlights();
@@ -162,8 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
     log(msg);
   };
 
-  // Show server-side errors in the log rather than silently swallowing them
   client.onActionError = ({ message }) => {
+    isMidMove = false;
     selectedCard = null;
     selectedValidMoves = [];
     renderer.clearHighlights();
@@ -173,6 +183,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function selectCardForMove(instanceId) {
     const card = localHand.find(c => c.instanceId === instanceId);
     if (!card) return;
+
+    // Toggle deselect — clicking the selected card again clears it
+    if (selectedCard && selectedCard.instanceId === instanceId) {
+      selectedCard = null;
+      selectedValidMoves = [];
+      renderer.clearHighlights();
+      return;
+    }
 
     const player = allPlayers.find(p => p.id === client.playerId);
     if (!player) {

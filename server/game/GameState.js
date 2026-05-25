@@ -27,22 +27,21 @@ class GameStateManager {
   // ── Play a card from hand ──────────────────────────────────────────────────
   playCard(playerId, instanceId) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
-    if (this.state !== GS.AWAITING_CARD)  return { ok: false, error: 'wrong state' };
 
     const player = this.currentPlayer;
-    const card   = player.hand.find(c => c.instanceId === instanceId || c.key === instanceId);
-    if (!card) return { ok: false, error: 'card not in hand' };
 
-    // Selecting cards to remove (Scientist / Travel Log effect)
+    // Handle pending removal prompts BEFORE state check — they run while state
+    // is AWAITING_MOVE (movesRemaining=0) after Scientist / Travel Log
     if (this.selectingCardsToRemove > 0) {
       this.selectingCardsToRemove--;
       player.removeCardPermanently(instanceId);
-      this.emit('card_removed',  { playerId, instanceId });
-      this.emit('hand_updated',  { playerId, hand: player.hand });
+      this.emit('hand_updated', { playerId, hand: player.hand });
+      if (this.selectingCardsToRemove === 0 && this.playedCardData) {
+        this._disposeFinishedCard(player);
+      }
       return { ok: true };
     }
 
-    // Selecting cards to discard for rubble cost
     if (this.selectingCardsForRubble > 0) {
       this.selectingCardsForRubble--;
       player.playCard(instanceId);
@@ -50,13 +49,32 @@ class GameStateManager {
       return { ok: true };
     }
 
-    // Normal card play — start a move
-    this.playedCardData  = card;
-    this.movesRemaining  = card.movementTotal;
-    this.state           = GS.AWAITING_MOVE;
+    // Allow reselection: cancel pending card, then fall through to pick new one
+    if (this.state === GS.AWAITING_MOVE) {
+      this._returnCardToHand();
+    }
+
+    if (this.state !== GS.AWAITING_CARD) return { ok: false, error: 'wrong state' };
+
+    const card = player.hand.find(c => c.instanceId === instanceId || c.key === instanceId);
+    if (!card) return { ok: false, error: 'card not in hand' };
+
+    this.playedCardData = card;
+    this.movesRemaining = card.movementTotal;
+    this.state          = GS.AWAITING_MOVE;
 
     this._handleSpecialCardPlayed(player, card);
+
+    // Transmitter resets state to AWAITING_CARD internally — return early
+    if (this.state === GS.AWAITING_CARD) return { ok: true };
+
     this._recalculateValidMoves();
+
+    // Zero-movement cards (Cartographer, Compass) — dispose immediately
+    if (this.movesRemaining === 0 && this.selectingCardsToRemove === 0) {
+      this._disposeFinishedCard(player);
+      return { ok: true };
+    }
 
     this.emit('card_played', { playerId, instanceId, validMoves: this.validMoves });
     return { ok: true };
@@ -165,8 +183,8 @@ class GameStateManager {
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
     const next = this.currentPlayer;
 
+    this.emit('hand_updated', { playerId: player.id, hand: player.hand });
     this.emit('turn_ended',   { nextPlayerId: next.id, nextPlayerName: next.name });
-    this.emit('hand_updated', { playerId: next.id, hand: next.hand });
     return { ok: true };
   }
 
@@ -259,17 +277,35 @@ class GameStateManager {
   }
 
   _disposeFinishedCard(player) {
-    // FIX: use player.playCard (not discardCard which doesn't exist)
     player.playCard(this.playedCardData.instanceId);
     this.state           = GS.AWAITING_CARD;
     this.wildCardTerrain = null;
     this.playedCardData  = null;
     this.movesRemaining  = 0;
     this.validMoves      = [];
-    this.emit('card_disposed', { playerId: player.id, hand: player.hand });
+    this.emit('card_disposed', { playerId: player.id });  // no hand — hand_updated carries that privately
     this.emit('hand_updated',  { playerId: player.id, hand: player.hand });
   }
 
+  // ── Cancel a card selection before any move is made ───────────────────────
+  cancelCard(playerId) {
+    if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
+    if (this.state !== GS.AWAITING_MOVE)  return { ok: false, error: 'nothing to cancel' };
+    const player = this.currentPlayer;
+    this._returnCardToHand();
+    this.emit('card_cancelled', { playerId });
+    this.emit('hand_updated',   { playerId: player.id, hand: player.hand });
+    return { ok: true };
+  }
+
+  // Card stays in hand during AWAITING_MOVE — just clear the selection state
+  _returnCardToHand() {
+    this.playedCardData  = null;
+    this.state           = GS.AWAITING_CARD;
+    this.wildCardTerrain = null;
+    this.movesRemaining  = 0;
+    this.validMoves      = [];
+  }
 
   _isCurrentPlayer(playerId) {
     return this.currentPlayer && this.currentPlayer.id === playerId;
