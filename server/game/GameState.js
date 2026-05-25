@@ -166,10 +166,7 @@ class GameStateManager {
 
     const player = this.currentPlayer;
 
-    // Discard remaining hand (use playCard which respects oneTimeUse)
-    while (player.hand.length > 0) {
-      player.playCard(player.hand[0].instanceId);
-    }
+    // Keep unplayed cards — just draw back up to 4
     player.drawUpToFour();
 
     // Reset state
@@ -183,6 +180,7 @@ class GameStateManager {
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
     const next = this.currentPlayer;
 
+    // Send updated hand to the player who drew, then announce next turn
     this.emit('hand_updated', { playerId: player.id, hand: player.hand });
     this.emit('turn_ended',   { nextPlayerId: next.id, nextPlayerName: next.name });
     return { ok: true };
@@ -283,11 +281,10 @@ class GameStateManager {
     this.playedCardData  = null;
     this.movesRemaining  = 0;
     this.validMoves      = [];
-    this.emit('card_disposed', { playerId: player.id });  // no hand — hand_updated carries that privately
+    this.emit('card_disposed', { playerId: player.id });
     this.emit('hand_updated',  { playerId: player.id, hand: player.hand });
   }
 
-  // ── Cancel a card selection before any move is made ───────────────────────
   cancelCard(playerId) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
     if (this.state !== GS.AWAITING_MOVE)  return { ok: false, error: 'nothing to cancel' };
@@ -298,7 +295,6 @@ class GameStateManager {
     return { ok: true };
   }
 
-  // Card stays in hand during AWAITING_MOVE — just clear the selection state
   _returnCardToHand() {
     this.playedCardData  = null;
     this.state           = GS.AWAITING_CARD;
