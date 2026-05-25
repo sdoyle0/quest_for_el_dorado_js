@@ -93,6 +93,10 @@ class GameClient {
     this.socket.emit('discard_card', { cardKey });
   }
 
+  debugState() {
+    this.socket.emit('debug_state');
+  }
+
   isMyTurn(currentPlayerId) {
     return this.playerId === currentPlayerId;
   }

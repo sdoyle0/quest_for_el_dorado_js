@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const boardEl     = document.getElementById('hex-board');
   const zoomInBtn   = document.getElementById('zoom-in-btn');
   const zoomOutBtn  = document.getElementById('zoom-out-btn');
+  const debugBtn    = document.getElementById('debug-btn');
 
   let boardZoom = 1;
   const BOARD_ZOOM_STEP = 0.25;
@@ -61,6 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
   zoomOutBtn?.addEventListener('click', () => {
     boardZoom = Math.max(BOARD_ZOOM_MIN, boardZoom - BOARD_ZOOM_STEP);
     updateBoardZoom();
+  });
+
+  debugBtn?.addEventListener('click', () => {
+    client.debugState();
   });
 
   client.onJoined = ({ roomId }) => {

@@ -8,6 +8,8 @@
 // oneTimeUse list (from multiplayer_service._is_card_type_one_time_use):
 //   GIANT_MACHETE, TREASURE_CHEST, PROP_PLANE, TRANSMITTER, COMPASS, TRAVEL_LOG
 
+const { CARD_KEYS } = require("./constants");
+
 // Color strings for UI rendering (from CardLibrary.gd)
 const CARD_COLORS = {
   green:  '#007600',
@@ -62,9 +64,10 @@ function getPurchasingPower(card) {
 // From multiplayer_service._get_player_starter_deck():
 //   3x EXPLORER, 4x TRAVELER, 1x SAILOR  (8 cards total, draw 4 per turn)
 const STARTER_DECK_TEMPLATE = [
-  { key: 'explorer',  count: 3 },
-  { key: 'traveler',  count: 4 },
-  { key: 'sailor',    count: 1 },
+  { key: CARD_KEYS.EXPLORER,  count: 3 },
+  { key: CARD_KEYS.TRAVELER,  count: 4 },
+  { key: CARD_KEYS.SAILOR,    count: 1 },
+  { key: CARD_KEYS.TREASURE_CHEST,    count: 2 },
 ];
 
 function buildStarterDeck() {

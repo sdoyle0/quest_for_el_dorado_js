@@ -12,6 +12,8 @@ const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server, {
   cors: { origin: '*' }, // tighten this for production
+  pingTimeout: 600000,   // Time in ms before a client is considered disconnected (default: 20000)
+  pingInterval: 25000   // Time in ms before sending a new ping (default: 25000)
 });
 
 const PORT = process.env.PORT || 3000;
@@ -83,6 +85,11 @@ io.on('connection', (socket) => {
   socket.on('discard_card', ({ cardKey }) => {
     const room = gameManager.getRoomForSocket(socket.id);
     if (room) room.handlePlayCard(socket.id, cardKey, true); // discard is handled in play logic
+  });
+
+  socket.on('debug_state', () => {
+    const room = gameManager.getRoomForSocket(socket.id);
+    if (room) console.log(room.gameState);
   });
 
   // --- Disconnect ---
