@@ -85,8 +85,8 @@ class GameRoom {
     }
   }
 
-  handlePlayCard(socketId, instanceId) {
-    const result = this.gameState.playCard(socketId, instanceId);
+  handlePlayCard(socketId, instanceId, isDiscardingFromHand) {
+    const result = this.gameState.playCard(socketId, instanceId, isDiscardingFromHand);
     if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
   }
 

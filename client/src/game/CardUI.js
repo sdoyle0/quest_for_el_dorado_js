@@ -11,6 +11,7 @@ class CardUI {
     this.onMarketCard     = null; // ({ cardKey, handCardsUsed }) — purchase
     this.onEndTurn        = null;
     this.onCancelPurchase = null;
+    this.onDiscardClicked = null;
 
     this._marketMode       = false;
     this._purchasePool     = new Map(); // instanceId → card
@@ -23,6 +24,7 @@ class CardUI {
   _bindControls() {
     document.getElementById('end-turn-btn').addEventListener('click', () => this.onEndTurn?.());
     document.getElementById('open-market-btn').addEventListener('click', () => this.openMarket());
+    document.getElementById('discard-btn').addEventListener('click', () => this.onDiscardClicked?.());
     document.getElementById('cancel-purchase-btn').addEventListener('click', () => this.closeMarket());
   }
 

@@ -25,7 +25,7 @@ class GameStateManager {
   }
 
   // ── Play a card from hand ──────────────────────────────────────────────────
-  playCard(playerId, instanceId) {
+  playCard(playerId, instanceId, isDiscardingFromHand) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
 
     const player = this.currentPlayer;
@@ -62,6 +62,11 @@ class GameStateManager {
     this.playedCardData = card;
     this.movesRemaining = card.movementTotal;
     this.state          = GS.AWAITING_MOVE;
+
+    if (isDiscardingFromHand) {
+      this._disposeFinishedCard(player);
+      return { ok: true };
+    }
 
     this._handleSpecialCardPlayed(player, card);
 

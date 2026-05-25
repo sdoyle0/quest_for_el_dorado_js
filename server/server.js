@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
   // Mirrors: MultiplayerService.notify_server_user_played_card (discard variant)
   socket.on('discard_card', ({ cardKey }) => {
     const room = gameManager.getRoomForSocket(socket.id);
-    if (room) room.handlePlayCard(socket.id, cardKey); // discard is handled in play logic
+    if (room) room.handlePlayCard(socket.id, cardKey, true); // discard is handled in play logic
   });
 
   // --- Disconnect ---

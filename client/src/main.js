@@ -111,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
   cardUI.onEndTurn        = ()            => client.endTurn();
   cardUI.onOpenMarket     = ()            => cardUI.showMarket(true);
   cardUI.onCancelPurchase = ()            => cardUI.showMarket(false);
+  cardUI.onDiscardClicked = ()            => client.discardCard(selectedCard.instanceId);
   cardUI.onMarketCard     = ({ cardKey, handCardsUsed }) => client.purchaseCard(cardKey, handCardsUsed);
 
   // ── Server → UI events ─────────────────────────────────────────────────────
