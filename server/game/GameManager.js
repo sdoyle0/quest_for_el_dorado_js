@@ -30,6 +30,14 @@ class GameRoom {
           return;
         }
       }
+      // prompt_reserve_choice is private — route only to the buying player
+      if (event === 'prompt_reserve_choice' && data.playerId) {
+        const owner = this.players.find(p => p.id === data.playerId);
+        if (owner) {
+          this.io.to(owner.socketId).emit('prompt_reserve_choice', data);
+          return;
+        }
+      }
       this._broadcast(event, data);
     };
   }
@@ -94,16 +102,24 @@ class GameRoom {
     const result = this.gameState.movePawn(socketId, tileId);
     if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
   }
+
   handleCancelCard(socketId) {
     const result = this.gameState.cancelCard(socketId);
     if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
   }
+
   handleEndTurn(socketId) {
     const result = this.gameState.endTurn(socketId);
     if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
   }
+
   handlePurchaseCard(socketId, cardKey, handCardsUsed = []) {
     const result = this.gameState.purchaseCard(socketId, cardKey, handCardsUsed, this.market);
+    if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
+  }
+
+  handleChooseReserveCard(socketId, soldOutKey, chosenKey) {
+    const result = this.gameState.chooseReserveCard(socketId, soldOutKey, chosenKey, this.market);
     if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
   }
 

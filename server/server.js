@@ -76,6 +76,12 @@ io.on('connection', (socket) => {
     if (room) room.handlePurchaseCard(socket.id, cardKey, handCardsUsed);
   });
 
+  // Buyer chose which reserve card fills the empty market slot
+  socket.on('choose_reserve_card', ({ soldOutKey, chosenKey }) => {
+    const room = gameManager.getRoomForSocket(socket.id);
+    if (room) room.handleChooseReserveCard(socket.id, soldOutKey, chosenKey);
+  });
+
   // Mirrors: MultiplayerService.notify_server_user_played_card (discard variant)
   socket.on('discard_card', ({ cardKey }) => {
     const room = gameManager.getRoomForSocket(socket.id);

@@ -173,6 +173,46 @@ document.addEventListener('DOMContentLoaded', () => {
     log(msg);
   };
 
+  // ── Reserve picker ─────────────────────────────────────────────────────────
+  client.onPromptReserveChoice = ({ soldOutKey, reserveCards }) => {
+    showReservePicker(soldOutKey, reserveCards);
+  };
+
+  function showReservePicker(soldOutKey, reserveCards) {
+    const overlay    = document.getElementById('reserve-picker');
+    const container  = document.getElementById('reserve-cards');
+    const soldOutLbl = document.getElementById('reserve-sold-out-label');
+
+    soldOutLbl.textContent = `Empty slot: ${soldOutKey.replace(/_/g, ' ')}`;
+    container.innerHTML = '';
+
+    for (const card of reserveCards) {
+      const btn = document.createElement('button');
+      btn.className = 'reserve-card-btn';
+
+      const movesLine  = card.movementTotal > 0
+        ? `<span>▶ ${card.movementTotal} ${card.movementTerrain}</span>` : '';
+      const effectLine = card.specialEffect && card.specialEffect !== 'none'
+        ? `<span style="color:#c0a830">★ ${card.specialEffect.replace(/_/g, ' ')}</span>` : '';
+
+      btn.innerHTML = `
+        <span style="font-weight:bold">${card.cardName}</span>
+        <span style="color:#ffd700">Cost: ${card.cost}</span>
+        <span style="color:#aaa">×${card.remaining} in reserve</span>
+        ${movesLine}
+        ${effectLine}`;
+
+      btn.addEventListener('click', () => {
+        client.chooseReserveCard(soldOutKey, card.key);
+        overlay.classList.add('hidden');
+        log(`Added ${card.cardName} to the market.`);
+      });
+      container.appendChild(btn);
+    }
+
+    overlay.classList.remove('hidden');
+  }
+
   client.onActionError = ({ message }) => {
     isMidMove = false;
     selectedCard = null;

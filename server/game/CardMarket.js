@@ -38,6 +38,31 @@ class CardMarket {
     return { ...slot, remaining: undefined, instanceId: `${cardKey}-bought-${Date.now()}` };
   }
 
+  // Returns all reserve entries that still have stock — sent to the client
+  // so the buyer can pick one to fill the empty shop slot.
+  getAvailableReserve() {
+    return this.reserve.filter(c => c.remaining > 0);
+  }
+
+  // Called once the buyer has chosen which reserve card fills the empty slot.
+  // soldOutKey — the shop slot to replace (by key)
+  // chosenKey  — the reserve card the player selected
+  // Returns the chosen card's key on success, null on bad input.
+  replenishShop(soldOutKey, chosenKey) {
+    const slotIdx = this.shop.findIndex(c => c.key === soldOutKey);
+    if (slotIdx === -1) return null;
+
+    const reserveIdx = this.reserve.findIndex(c => c.key === chosenKey && c.remaining > 0);
+    if (reserveIdx === -1) return null;
+
+    const reserveCard = this.reserve[reserveIdx];
+    // Replace the sold-out slot in-place (preserves column order in the UI)
+    this.shop[slotIdx] = { ...reserveCard };
+    // Remove that entry from the reserve list
+    this.reserve.splice(reserveIdx, 1);
+    return reserveCard.key;
+  }
+
   // Mirrors notify_server_user_placed_reserve_card_to_shop()
   moveReserveToShop(cardKey) {
     const rSlot = this.reserve.find(c => c.key === cardKey);

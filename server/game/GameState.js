@@ -13,6 +13,7 @@ class GameStateManager {
     this.selectingCardsToRemove = 0;
     this.selectingCardsForRubble = 0;
     this.transmitterActive = false;
+    this.pendingReserveSlot = null; // soldOutKey awaiting the buyer's reserve pick
     this.onEvent = null;
   }
 
@@ -133,6 +134,10 @@ class GameStateManager {
   endTurn(playerId) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
 
+    if (this.pendingReserveSlot) {
+      return { ok: false, error: 'choose a reserve card for the empty market slot first' };
+    }
+
     const player = this.currentPlayer;
 
     // Keep unplayed cards — just draw back up to 4
@@ -187,10 +192,42 @@ class GameStateManager {
 
     this.transmitterActive = false;
 
+    // If the slot just emptied and reserve cards are available, prompt the
+    // buyer to pick which reserve card fills the gap before ending their turn.
+    if (cardMarket.shopCardSoldOut(cardKey)) {
+      const available = cardMarket.getAvailableReserve();
+      if (available.length > 0) {
+        this.pendingReserveSlot = cardKey;
+        // Private event — GameManager routes this only to the buying player
+        this.emit('prompt_reserve_choice', {
+          playerId,
+          soldOutKey: cardKey,
+          reserveCards: available,
+        });
+      }
+    }
+
     this.emit('card_purchased', { playerId, cardKey });
     this.emit('hand_updated',   { playerId, hand: player.hand });
     this.emit('market_updated', { market: cardMarket.getShopState() });
     this.emit('purchase_closed',{ playerId });
+    return { ok: true };
+  }
+
+  // ── Buyer picks which reserve card fills the empty shop slot ──────────────
+  chooseReserveCard(playerId, soldOutKey, chosenKey, cardMarket) {
+    if (!this._isCurrentPlayer(playerId)) {
+      return { ok: false, error: 'not your turn' };
+    }
+    if (this.pendingReserveSlot !== soldOutKey) {
+      return { ok: false, error: 'no pending reserve choice for that slot' };
+    }
+    const result = cardMarket.replenishShop(soldOutKey, chosenKey);
+    if (!result) {
+      return { ok: false, error: 'invalid reserve card selection' };
+    }
+    this.pendingReserveSlot = null;
+    this.emit('market_updated', { market: cardMarket.getShopState() });
     return { ok: true };
   }
 
