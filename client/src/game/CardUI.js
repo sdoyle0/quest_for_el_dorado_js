@@ -96,15 +96,16 @@ class CardUI {
     btn.className = 'card-btn' + (inPool ? ' in-pool' : '') + (card.movementTerrain ? ` terrain-${card.movementTerrain}` : '');
     btn.dataset.instanceId = card.instanceId;
 
-    const terrainLabel = card.movementTerrain && card.movementTerrain !== 'empty'
-      ? `<span class="card-terrain">${card.movementTerrain}</span>` : '';
-    const movesLabel = card.movementTotal > 0
-      ? `<span class="card-moves">▶ ${card.movementTotal}</span>` : '';
+    // const terrainLabel = card.movementTerrain && card.movementTerrain !== 'empty'
+    //   ? `<span class="card-terrain">${card.movementTerrain}</span>` : '';
+    const movesLabel = card.movementTotal > 0 ? `▶ ${card.movementTotal}` : '&nbsp;';
+    const oneTimeLabel = card.oneTimeUse ? ` ❌` : '';
     const powerLabel = card.purchasingPower
       ? `<span class="card-gold">💰 ${card.purchasingPower}</span>` : '';
 
     btn.innerHTML = `<span class="card-name">${card.cardName || card.key}</span>
-      ${terrainLabel}${movesLabel}${powerLabel}`;
+      <span class="card-moves">${movesLabel}${oneTimeLabel}</span>
+      ${powerLabel}`;
     return btn;
   }
 
@@ -135,16 +136,17 @@ class CardUI {
       btn.className = 'market-card';
       btn.dataset.cardKey = card.key;
 
-      const movesLabel = card.movementTotal > 0
-        ? `<span class="card-moves">▶ ${card.movementTotal}</span>` : '';
+      const movesLabel = card.movementTotal > 0 ? `▶ ${card.movementTotal}` : '&nbsp;';
+      const oneTimeLabel = card.oneTimeUse ? ` ❌` : '';
       const effectLabel = card.specialEffect && card.specialEffect !== 'none'
         ? `<span class="card-effect">★ ${card.specialEffect}</span>` : '';
 
       btn.innerHTML = `
         <span class="card-name">${card.cardName}</span>
+        <span class="card-moves">${movesLabel}${oneTimeLabel}</span>
         <span class="card-cost">Cost: ${card.cost}</span>
-        <span class="card-remaining">×${card.remaining}</span>
-        ${movesLabel}${effectLabel}`;
+        <span class="card-remaining">×${card.remaining}</span>`;
+      //${effectLabel}
 
       btn.addEventListener('click', () => this._onMarketCardClicked(card));
       this.shopEl.appendChild(btn);
