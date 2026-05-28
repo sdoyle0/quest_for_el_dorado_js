@@ -4,7 +4,6 @@ const { GameStateManager } = require('./GameState');
 const { CardMarket } = require('./CardMarket');
 const { HexBoard } = require('./HexBoard');
 const { Player } = require('./Player');
-const { MARKET_CARD_POOL } = require('../../shared/cardData');
 const MAP_DATA = require('../../shared/mapData.json');
 
 class GameRoom {
@@ -56,7 +55,7 @@ class GameRoom {
     socket.join(this.roomId);
     this._broadcast('player_joined', { player: player.toPublicData(), roomId: this.roomId });
 
-    if (this.players.length === this.maxPlayers) this._startGame();
+    if (this.players.length === this.maxPlayers) setImmediate(() => this._startGame());
     return player;
   }
 
@@ -68,7 +67,7 @@ class GameRoom {
   _startGame() {
     this.started = true;
     this.board.loadMap(MAP_DATA);
-    this.market.init(MARKET_CARD_POOL);
+    this.market.init();
     this.gameState.players = this.players;
 
     for (const player of this.players) {

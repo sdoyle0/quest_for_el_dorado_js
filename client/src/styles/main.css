@@ -321,3 +321,59 @@ body {
   background: #2a5080;
   border-color: #ffd700;
 }
+
+/* Debug panel */
+#debug-panel {
+  display: none;
+  position: fixed;
+  bottom: 160px;
+  right: 228px;
+  background: rgba(10, 10, 30, 0.92);
+  border: 1px solid #e74c3c;
+  border-radius: 6px;
+  padding: 0.5rem;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+}
+
+.debug-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+#debug-panel input {
+  padding: 0.25rem 0.4rem;
+  background: #1a1a2e;
+  border: 1px solid #555;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 0.72rem;
+  width: 200px;
+}
+
+#debug-panel button {
+  padding: 0.25rem 0.5rem;
+  background: #3a0a0a;
+  border: 1px solid #e74c3c;
+  border-radius: 3px;
+  color: #e74c3c;
+  cursor: pointer;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+#debug-panel button:hover { background: #5a1a1a; }
+
+.debug-presets-label { color: #888; }
+
+.debug-preset {
+  border-color: #888 !important;
+  color: #aaa !important;
+  background: #1a1a2e !important;
+}
+
+.debug-preset:hover { background: #2a2a4e !important; }

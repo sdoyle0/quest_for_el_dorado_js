@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (DEBUG) {
     document.title += ' [DEBUG]';
     // Small delay so socket is ready
-    setTimeout(() => client.joinGame('Debug Player'), 100);
+    setTimeout(() => client.joinGame('Debug Player', true), 100);
   }
 
   // ── Lobby ──────────────────────────────────────────────────────────────────
@@ -68,12 +68,56 @@ document.addEventListener('DOMContentLoaded', () => {
     client.debugState();
   });
 
+  if (DEBUG) {
+    const panel = document.createElement('div');
+    panel.id = 'debug-panel';
+    panel.innerHTML = `
+    <div class="debug-row">
+      <input id="debug-hand-input" placeholder="explorer,scout,transmitter" />
+      <button id="debug-set-hand-btn">Set Hand</button>
+    </div>
+    <div class="debug-row">
+      <input id="debug-tile-input" placeholder="tile id e.g. 5_-11" />
+      <button id="debug-teleport-btn">Teleport</button>
+    </div>
+    <div class="debug-row">
+      <span class="debug-presets-label">Presets:</span>
+      <button class="debug-preset" data-hand="transmitter,scout,scout,explorer">Transmitter</button>
+      <button class="debug-preset" data-hand="pioneer,giant_machete,adventurer,prop_plane">Speed run</button>
+      <button class="debug-preset" data-hand="scientist,travel_log,cartographer,compass">Purple hand</button>
+    </div>
+  `;
+    document.getElementById('game-screen').appendChild(panel);
+
+    document.getElementById('debug-set-hand-btn').addEventListener('click', () => {
+      const val = document.getElementById('debug-hand-input').value.trim();
+      if (!val) return;
+      client.debugSetHand(val.split(',').map(s => s.trim()).filter(Boolean));
+    });
+
+    document.getElementById('debug-teleport-btn').addEventListener('click', () => {
+      const tileId = document.getElementById('debug-tile-input').value.trim();
+      if (tileId) client.debugTeleport(tileId);
+    });
+
+    panel.querySelectorAll('.debug-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const keys = btn.dataset.hand.split(',');
+        client.debugSetHand(keys);
+        document.getElementById('debug-hand-input').value = btn.dataset.hand;
+      });
+    });
+
+    // Shift+click any tile to teleport instead of move
+    const _originalTileClick = renderer.onTileClick;
+    renderer.onTileClick = (tileId, event) => {
+      if (event?.shiftKey) { client.debugTeleport(tileId); return; }
+      _originalTileClick?.(tileId);
+    };
+  }
+
   client.onJoined = ({ roomId }) => {
     lobbyStatus.textContent = `Joined room ${roomId}. Waiting for opponent…`;
-
-    if (DEBUG) {
-      updateTurnLabel(client.playerId);
-    }
   };
 
   client.onPlayerJoined = ({ player }) => log(`${player.name} joined.`);
@@ -114,8 +158,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Cards ──────────────────────────────────────────────────────────────────
   cardUI.onCardPlayed     = (instanceId)  => selectCardForMove(instanceId);
   cardUI.onEndTurn        = ()            => client.endTurn();
-  cardUI.onOpenMarket     = ()            => cardUI.showMarket(true);
-  cardUI.onCancelPurchase = ()            => cardUI.showMarket(false);
   cardUI.onDiscardClicked = ()            => client.discardCard(selectedCard.instanceId);
   cardUI.onMarketCard     = ({ cardKey, handCardsUsed }) => client.purchaseCard(cardKey, handCardsUsed);
 

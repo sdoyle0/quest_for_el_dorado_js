@@ -65,8 +65,8 @@ class GameClient {
 
   // --- Actions (mirrors RPC calls) ---
 
-  joinGame(playerName) {
-    this.socket.emit('join_game', { playerName });
+  joinGame(playerName, debugMode = false) {
+    this.socket.emit('join_game', { playerName, debugMode });
   }
 
   playCard(instanceId) {
@@ -99,6 +99,14 @@ class GameClient {
 
   debugState() {
     this.socket.emit('debug_state');
+  }
+
+  debugSetHand(cardKeys) {
+    this.socket.emit('debug_set_hand', { cardKeys });
+  }
+
+  debugTeleport(tileId) {
+    this.socket.emit('debug_teleport', { tileId });
   }
 
   isMyTurn(currentPlayerId) {

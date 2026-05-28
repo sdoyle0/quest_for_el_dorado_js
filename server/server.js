@@ -7,6 +7,7 @@ const http    = require('http');
 const { Server } = require('socket.io');
 const path    = require('path');
 const { GameManager } = require('./game/GameManager');
+const { CARD_DEFINITIONS, getPurchasingPower } = require('../shared/cardData');
 
 const app    = express();
 const server = http.createServer(app);
@@ -97,6 +98,40 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`[disconnect] ${socket.id}`);
     gameManager.handleDisconnect(socket.id);
+  });
+
+  socket.on('debug_set_hand', ({ cardKeys }) => {
+    const room = gameManager.getRoomForSocket(socket.id);
+    if (!room) return;
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (!player) return;
+
+    const cardMap = new Map(CARD_DEFINITIONS.map(c => [c.key, c]));
+
+    const newHand = cardKeys
+      .map((key, i) => {
+        const def = cardMap.get(key);
+        if (!def) { console.warn('debug_set_hand: unknown key', key); return null; }
+        return {
+          ...def,
+          purchasingPower: getPurchasingPower(def),
+          instanceId: `debug-${key}-${i}-${Date.now()}`,  // ← must be unique
+        };
+      })
+      .filter(Boolean);
+
+    player.hand = newHand;
+
+    // Must emit to the socket directly, not broadcast
+    socket.emit('hand_updated', { hand: newHand });
+  });
+
+  socket.on('debug_teleport', ({ tileId }) => {
+    const room = gameManager.getRoomForSocket(socket.id);
+    if (!room) return;
+    const player = room.players.find(p => p.socketId === socket.id);
+    player.currentTileId = tileId;
+    room._broadcast('pawn_moved', { playerId: player.id, tileId });
   });
 });
 
