@@ -14,6 +14,14 @@ class GameStateManager {
     this.selectingCardsForRubble = 0;
     this.transmitterActive = false;
     this.pendingReserveSlot = null; // soldOutKey awaiting the buyer's reserve pick
+    // ── Final-round tracking ──────────────────────────────────────────────────
+    // Triggered when any player steps onto an el_dorado tile.
+    // All players who haven't yet taken a turn in that round get one final turn,
+    // then the game ends. Exception: if the LAST player of the round triggers it,
+    // the game ends immediately.
+    this.finalRoundTriggered = false;
+    this.finalRoundTriggerPlayerIndex = -1; // index of the player who triggered it
+    this.firstWinnerId = null;              // the player who triggered the final round
     this.onEvent = null;
   }
 
@@ -97,10 +105,35 @@ class GameStateManager {
     player.currentTileId = tileId;
     this.emit('pawn_moved', { playerId, tileId });
 
-    // Win condition
-    if (tile.terrainType === TerrainType.EL_DORADO) {
-      this.state = GS.GAME_OVER;
-      this.emit('game_won', { playerId });
+    // ── Finishing spaces ───────────────────────────────────────────────────
+    // Tiles marked isFinishing:true in mapData are the final spaces before
+    // El Dorado. The gold el_dorado tiles behind them are impassable decoration.
+    if (tile.isFinishing) {
+      if (!this.firstWinnerId) this.firstWinnerId = playerId;
+ 
+      const isLastPlayerOfRound = this.currentPlayerIndex === this.players.length - 1;
+ 
+      if (!this.finalRoundTriggered) {
+        this.finalRoundTriggered = true;
+        this.finalRoundTriggerPlayerIndex = this.currentPlayerIndex;
+ 
+        if (isLastPlayerOfRound) {
+          // No one else left to play — end immediately
+          this.state = GS.GAME_OVER;
+          this._disposeFinishedCard(player);
+          this.emit('game_won', { playerId: this.firstWinnerId });
+          return { ok: true };
+        }
+ 
+        // Announce the final round; remaining players still take their turns
+        this.emit('final_round_started', {
+          triggeredByPlayerId: playerId,
+          winnerId: this.firstWinnerId,
+        });
+      }
+
+      // Dispose the card and let the player end their turn normally
+      this._disposeFinishedCard(player);
       return { ok: true };
     }
 
@@ -143,13 +176,23 @@ class GameStateManager {
     // Keep unplayed cards — just draw back up to 4
     player.drawUpToFour();
 
-    // Reset state
+    // Reset per-turn state
     this.state             = GS.AWAITING_CARD;
     this.playedCardData    = null;
     this.movesRemaining    = 0;
     this.wildCardTerrain   = null;
     this.validMoves        = [];
     this.transmitterActive = false;
+
+    // ── Final-round end check ──────────────────────────────────────────────
+    // The final round ends once the last player of the round (index N-1) has
+    // taken their turn. The player who triggered the final round is the winner.
+    if (this.finalRoundTriggered && this.currentPlayerIndex === this.players.length - 1) {
+      this.state = GS.GAME_OVER;
+      this.emit('hand_updated', { playerId: player.id, hand: player.hand });
+      this.emit('game_won', { playerId: this.firstWinnerId });
+      return { ok: true };
+    }
 
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
     const next = this.currentPlayer;
@@ -268,7 +311,6 @@ class GameStateManager {
 
   _recalculateValidMoves() {
     const player = this.currentPlayer;
-    // FIX: pass currentTileId (string), not the tile object
     this.validMoves = this.board.getValidMoves({
       currentTileId:  player.currentTileId,
       playedCard:     this.playedCardData,
@@ -277,7 +319,6 @@ class GameStateManager {
       players:        this.players,
       handSize:       player.hand.length,
     });
-    // getValidMoves already returns an array of ID strings — no .map() needed
   }
 
   _disposeFinishedCard(player) {

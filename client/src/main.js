@@ -184,8 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderer.setPawnPosition(playerId, tileId, PAWN_COLORS[idx] || '#aaa');
     renderer.clearHighlights();
     log(`Moved to ${tileId}`);
-    // Don't clear selectedCard/isMidMove — valid_moves_updated fires if more steps remain,
-    // card_disposed fires when done
   };
 
   client.onCardDisposed = () => {
@@ -204,13 +202,35 @@ document.addEventListener('DOMContentLoaded', () => {
     log(`${nextPlayerName}'s turn.`);
   };
 
+  // ── Final round ────────────────────────────────────────────────────────────
+  // Fires when the first player reaches El Dorado but is NOT the last player
+  // in the round. Every remaining player in this round takes one last turn.
+  client.onFinalRoundStarted = ({ triggeredByPlayerId }) => {
+    const trigger = allPlayers.find(p => p.id === triggeredByPlayerId);
+    const triggerName = trigger?.name || 'A player';
+
+    if (client.playerId === triggeredByPlayerId) {
+      const msg = '🏆 You reached El Dorado! Other players take their final turn.';
+      showModal(msg);
+      log(msg);
+    } else {
+      const msg = `${triggerName} reached El Dorado! Take your final turn.`;
+      showModal(msg);
+      log(msg);
+    }
+  };
+
   client.onMarketUpdated  = ({ market }) => { cardUI.renderMarket(market); cardUI.showMarket(false); };
   client.onPurchaseOpened = ({ totalPurchasePower }) => cardUI.openMarketWithBonus(totalPurchasePower);
   client.onPurchaseClosed = () => cardUI.closeMarket();
   client.onPromptRemove   = ({ count })              => showModal(`Select ${count} card(s) to permanently remove from your deck.`);
 
   client.onGameWon = ({ playerId }) => {
-    const msg = client.playerId === playerId ? '🏆 You reached El Dorado!' : 'Opponent reached El Dorado. Game over.';
+    const winner = allPlayers.find(p => p.id === playerId);
+    const winnerName = winner?.name || 'Someone';
+    const msg = client.playerId === playerId
+      ? '🏆 You win! El Dorado is yours!'
+      : `${winnerName} wins the race to El Dorado. Game over.`;
     showModal(msg, false);
     log(msg);
   };

@@ -5,12 +5,13 @@ const _ElDoradoBoardDeps = (typeof module !== 'undefined' && module.exports)
 const AXIAL_DIRS = [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]];
 
 class HexTile {
-  constructor({ id, q, r, terrainType, movementCost, playerNumber }) {
+  constructor({ id, q, r, terrainType, movementCost, playerNumber, isFinishing }) {
     this.id = id;
     this.q = q;
     this.r = r;
     this.terrainType = terrainType;
     this.movementCost = movementCost ?? 1;
+    this.isFinishing = isFinishing ?? false;
     this.playerNumber = playerNumber ?? null;
   }
 }
@@ -66,27 +67,28 @@ class HexBoard {
   isValidMove({ neighbor, playedCard, movesRemaining, wildCardTerrain, players, handSize }) {
     const terrain = neighbor.terrainType;
     const cost = neighbor.movementCost;
-
-    if (terrain === _ElDoradoBoardDeps.TerrainType.START) return false;
-    if (terrain === _ElDoradoBoardDeps.TerrainType.MOUNTAIN) return false;
+ 
+    if (terrain === _ElDoradoBoardDeps.TerrainType.START)     return false;
+    if (terrain === _ElDoradoBoardDeps.TerrainType.MOUNTAIN)  return false;
+    if (terrain === _ElDoradoBoardDeps.TerrainType.EL_DORADO) return false; // decorative — impassable
     if (players.some((p) => p.currentTileId === neighbor.id)) return false;
-
+ 
     if (playedCard.specialEffect === _ElDoradoBoardDeps.CardEffect.NATIVE) return true;
-
+ 
     if (terrain === _ElDoradoBoardDeps.TerrainType.RUBBLE) {
       if (movesRemaining < playedCard.movementTotal) return false;
       return handSize >= cost;
     }
-
+ 
     if (terrain === _ElDoradoBoardDeps.TerrainType.CAMP) return true;
-
+ 
     const enoughMoves = cost <= movesRemaining;
     let cardTerrain = playedCard.movementTerrain;
     if (cardTerrain === _ElDoradoBoardDeps.TerrainType.WILD) {
       if (wildCardTerrain === null) return enoughMoves;
       cardTerrain = wildCardTerrain;
     }
-
+ 
     return terrain === cardTerrain && enoughMoves;
   }
 }

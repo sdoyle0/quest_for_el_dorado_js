@@ -21,7 +21,7 @@ const TERRAIN_STYLE = {
   camp:     { fill:'#7a3e1a', stroke:'#4e270f', label:'🏕'  },
   rubble:   { fill:'#6b6b6b', stroke:'#444',    label:'💀'  },
   start:    { fill:'#2a5fa8', stroke:'#1a3d6e', label:'🏳'  },
-  el_dorado:{ fill:'#d4a800', stroke:'#a07800', label:'✦'  },
+  el_dorado:{ fill:'#19755a', stroke:'#29a17d', label:'🏆'  },
 };
 
 class HexRenderer {

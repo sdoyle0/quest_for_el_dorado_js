@@ -1528,7 +1528,8 @@
       "q": 24,
       "r": -10,
       "terrainType": "jungle",
-      "movementCost": 1
+      "movementCost": 1,
+      "isFinishing": true
     },
     {
       "id": "25_-14",
@@ -1549,14 +1550,16 @@
       "q": 25,
       "r": -12,
       "terrainType": "jungle",
-      "movementCost": 1
+      "movementCost": 1,
+      "isFinishing": true
     },
     {
       "id": "25_-11",
       "q": 25,
       "r": -11,
       "terrainType": "jungle",
-      "movementCost": 1
+      "movementCost": 1,
+      "isFinishing": true
     },
     {
       "id": "26_-12",
