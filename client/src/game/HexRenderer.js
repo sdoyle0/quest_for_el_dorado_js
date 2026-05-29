@@ -14,12 +14,12 @@ const H_STEP = 86.6;  // vertical spacing
 const H_HALF = 43.3;
 
 const TERRAIN_STYLE = {
-  jungle:   { fill:'#1e5e1e', stroke:'#143d14', label:'🌿' },
-  water:    { fill:'#1a5fa8', stroke:'#0e3d6e', label:'🌊' },
+  jungle:   { fill:'#1e5e1e', stroke:'#143d14', label:'🌿'  },
+  water:    { fill:'#1a5fa8', stroke:'#0e3d6e', label:'🌊'  },
   village:  { fill:'#c8a000', stroke:'#8a6e00', label:'🏘'  },
-  mountain: { fill:'#5c4a3a', stroke:'#3a2e26', label:'⛰'  },
-  camp:     { fill:'#7a3e1a', stroke:'#4e270f', label:'🏕'  },
-  rubble:   { fill:'#6b6b6b', stroke:'#444',    label:'💀'  },
+  mountain: { fill:'#251e17', stroke:'#18100c', label:'⛰', textColor: '#a2e5ff'  },
+  camp:     { fill:'#c57466', stroke:'#b84c39', label:'🚫'  },
+  rubble:   { fill:'#6b6b6b', stroke:'#444',    label:'🪨'  },
   start:    { fill:'#2a5fa8', stroke:'#1a3d6e', label:'🏳'  },
   el_dorado:{ fill:'#19755a', stroke:'#29a17d', label:'🏆'  },
 };
@@ -95,6 +95,7 @@ class HexRenderer {
     icon.setAttribute('dominant-baseline', 'middle');
     icon.setAttribute('font-size', '18');
     icon.setAttribute('pointer-events', 'none');
+    if (style.textColor) icon.setAttribute('fill', style.textColor);
     icon.textContent = style.label;
 
     g.appendChild(icon);
