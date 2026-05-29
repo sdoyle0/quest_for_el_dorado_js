@@ -66,9 +66,14 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBoardZoom();
   });
 
-  debugBtn?.addEventListener('click', () => {
-    client.debugState();
-  });
+  // Debug button only wired up in debug mode
+  if (DEBUG) {
+    debugBtn?.addEventListener('click', () => {
+      client.debugState();
+    });
+  } else {
+    debugBtn?.remove();
+  }
 
   if (DEBUG) {
     const panel = document.createElement('div');
@@ -240,8 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // ── Final round ────────────────────────────────────────────────────────────
-  // Fires when the first player reaches El Dorado but is NOT the last player
-  // in the round. Every remaining player in this round takes one last turn.
   client.onFinalRoundStarted = ({ triggeredByPlayerId }) => {
     const trigger = allPlayers.find(p => p.id === triggeredByPlayerId);
     const triggerName = trigger?.name || 'A player';

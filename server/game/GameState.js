@@ -403,7 +403,6 @@ class GameStateManager {
       this.emit('card_disposed', { playerId: player.id });
     } else {
       this._returnCardToHand();
-      this.emit('card_cancelled', { playerId });
       this.emit('hand_updated',   { playerId: player.id, hand: player.hand });
     }
     return { ok: true };
