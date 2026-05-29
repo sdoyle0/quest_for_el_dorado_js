@@ -212,10 +212,11 @@ class CardUI {
     document.getElementById('open-market-btn').disabled = !enabled;
   }
 
-  enterRubblePaymentMode(count, onConfirm, onCancel) {
+  enterRubblePaymentMode(count, excludeInstanceId, onConfirm, onCancel) {
     this._rubbleMode = true;
     this._rubbleNeeded = count;
     this._rubblePool = new Map(); // instanceId → card
+    this._rubbleExcludeId = excludeInstanceId ?? null;
     this._rubbleOnConfirm = onConfirm;
     this._rubbleOnCancel = onCancel;
     this._renderHandForRubble();
@@ -245,6 +246,7 @@ class CardUI {
 
     this.handEl.innerHTML = '';
     for (const card of this._currentHand) {
+      if (card.instanceId === this._rubbleExcludeId) continue;
       const btn = this._makeCardButton(card, false);
       btn.addEventListener('click', () => {
         if (this._rubblePool.has(card.instanceId)) {
