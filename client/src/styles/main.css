@@ -175,7 +175,7 @@ body {
 #hand-controls button:hover { background: #2a5080; }
 #hand-controls button:disabled { opacity: .4; cursor: not-allowed; }
 
-/* Market overlay */
+/* ── Market overlay ──────────────────────────────────────────────────────── */
 #card-market {
   position: absolute;
   bottom: 140px; left: 0; right: 220px;
@@ -183,6 +183,8 @@ body {
   border-top: 2px solid #c0a830;
   padding: .75rem;
   z-index: 10;
+  max-height: 55vh;
+  overflow-y: auto;
 }
 #market-header {
   display: flex;
@@ -192,11 +194,43 @@ body {
   color: #ffd700;
   font-weight: bold;
 }
+
+/* Shop slots container — now vertical (shop row + reserve row) */
 #shop-slots {
   display: flex;
+  flex-direction: column;
   gap: .5rem;
-  overflow-x: auto;
 }
+
+/* A horizontal row of cards within a section */
+.market-row {
+  display: flex;
+  flex-direction: row;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+/* Section headings inside the market */
+.market-section-header {
+  font-size: .7rem;
+  font-weight: bold;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #c0a830;
+  padding: .1rem 0;
+}
+
+.market-reserve-header {
+  color: #8899bb;
+}
+
+/* Thin rule between shop and reserve */
+.market-divider {
+  border: none;
+  border-top: 1px solid #2a3a5a;
+  margin: .25rem 0;
+}
+
 .market-card {
   min-width: 90px;
   padding: .4rem .5rem;
@@ -211,8 +245,29 @@ body {
   gap: 2px;
 }
 .market-card.empty { opacity: .4; cursor: default; }
-.market-card:not(.empty):hover { background: #2a5080; }
+.market-card:not(.empty):not(.reserve-locked):hover { background: #2a5080; }
 .card-cost { color: #ffd700; }
+.card-effect { color: #c0a830; font-size: .7rem; }
+
+/* Reserve cards when NOT bought via Transmitter — greyed out, no hover */
+.market-card.market-reserve {
+  border-color: #3a4a6a;
+  background: #141e30;
+}
+
+.market-card.market-reserve.reserve-locked {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+/* Reserve cards that ARE purchasable (Transmitter active) */
+.market-card.market-reserve:not(.reserve-locked) {
+  border-color: #8844cc;
+  background: #1e1040;
+}
+.market-card.market-reserve:not(.reserve-locked):hover {
+  background: #2a1a5a;
+}
 
 /* Modal */
 #modal-overlay {
@@ -332,7 +387,7 @@ body {
 #debug-panel {
   display: none;
   position: fixed;
-  bottom: 160px;
+  top: 25px;
   right: 228px;
   background: rgba(10, 10, 30, 0.92);
   border: 1px solid #e74c3c;

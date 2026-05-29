@@ -13,15 +13,11 @@ class GameStateManager {
     this.selectingCardsToRemove = 0;
     this.selectingCardsForRubble = 0;
     this.transmitterActive = false;
-    this.pendingReserveSlot = null; // soldOutKey awaiting the buyer's reserve pick
+    this.pendingReserveSlot = null;
     // ── Final-round tracking ──────────────────────────────────────────────────
-    // Triggered when any player steps onto an el_dorado tile.
-    // All players who haven't yet taken a turn in that round get one final turn,
-    // then the game ends. Exception: if the LAST player of the round triggers it,
-    // the game ends immediately.
     this.finalRoundTriggered = false;
-    this.finalRoundTriggerPlayerIndex = -1; // index of the player who triggered it
-    this.firstWinnerId = null;              // the player who triggered the final round
+    this.finalRoundTriggerPlayerIndex = -1;
+    this.firstWinnerId = null;
     this.onEvent = null;
   }
 
@@ -39,8 +35,7 @@ class GameStateManager {
 
     const player = this.currentPlayer;
 
-    // Handle pending removal prompts BEFORE state check — they run while state
-    // is AWAITING_MOVE (movesRemaining=0) after Scientist / Travel Log
+    // Handle pending removal prompts BEFORE state check
     if (this.selectingCardsToRemove > 0) {
       this.selectingCardsToRemove--;
       player.removeCardPermanently(instanceId);
@@ -58,9 +53,21 @@ class GameStateManager {
       return { ok: true };
     }
 
-    // Allow reselection: cancel pending card, then fall through to pick new one
+    // BUG FIX 3: If the player already started moving with a card (isMidMove),
+    // reselecting a different card should discard the original card, not return
+    // it silently. We detect this by checking if we have a playedCardData with
+    // movesRemaining < movementTotal (i.e. they've moved at least once).
     if (this.state === GS.AWAITING_MOVE) {
-      this._returnCardToHand();
+      const hadPartialMove = this.playedCardData &&
+        this.movesRemaining < this.playedCardData.movementTotal;
+
+      if (hadPartialMove) {
+        // Discard the partially-used card before switching
+        this._discardPartialCard(player);
+      } else {
+        // No moves taken yet — safe to return card to hand
+        this._returnCardToHand();
+      }
     }
 
     if (this.state !== GS.AWAITING_CARD) return { ok: false, error: 'wrong state' };
@@ -106,33 +113,28 @@ class GameStateManager {
     this.emit('pawn_moved', { playerId, tileId });
 
     // ── Finishing spaces ───────────────────────────────────────────────────
-    // Tiles marked isFinishing:true in mapData are the final spaces before
-    // El Dorado. The gold el_dorado tiles behind them are impassable decoration.
     if (tile.isFinishing) {
       if (!this.firstWinnerId) this.firstWinnerId = playerId;
- 
+
       const isLastPlayerOfRound = this.currentPlayerIndex === this.players.length - 1;
- 
+
       if (!this.finalRoundTriggered) {
         this.finalRoundTriggered = true;
         this.finalRoundTriggerPlayerIndex = this.currentPlayerIndex;
- 
+
         if (isLastPlayerOfRound) {
-          // No one else left to play — end immediately
           this.state = GS.GAME_OVER;
           this._disposeFinishedCard(player);
           this.emit('game_won', { playerId: this.firstWinnerId });
           return { ok: true };
         }
- 
-        // Announce the final round; remaining players still take their turns
+
         this.emit('final_round_started', {
           triggeredByPlayerId: playerId,
           winnerId: this.firstWinnerId,
         });
       }
 
-      // Dispose the card and let the player end their turn normally
       this._disposeFinishedCard(player);
       return { ok: true };
     }
@@ -179,12 +181,10 @@ class GameStateManager {
       return { ok: false, error: `rubble requires ${needed} extra card(s), got ${extraCards.length}` };
     }
 
-    // Discard extra hand cards
     for (const card of extraCards) {
       player.playCard(card.instanceId);
     }
 
-    // Move the pawn
     player.currentTileId = tileId;
     this.emit('pawn_moved', { playerId, tileId });
 
@@ -194,10 +194,7 @@ class GameStateManager {
       return { ok: true };
     }
 
-    // Dispose the original movement card and reset state
-    // (bypasses the broken path in movePawn that sets selectingCardsForRubble)
     this._disposeFinishedCard(player);
-
     return { ok: true };
   }
 
@@ -211,10 +208,18 @@ class GameStateManager {
 
     const player = this.currentPlayer;
 
-    // Keep unplayed cards — just draw back up to 4
+    // BUG FIX 3 (end-turn variant): if the player ends their turn while mid-move
+    // (card played, some moves taken but not exhausted), discard the played card.
+    if (this.state === GS.AWAITING_MOVE && this.playedCardData) {
+      player.playCard(this.playedCardData.instanceId);
+      this.playedCardData  = null;
+      this.movesRemaining  = 0;
+      this.wildCardTerrain = null;
+      this.validMoves      = [];
+    }
+
     player.drawUpToFour();
 
-    // Reset per-turn state
     this.state             = GS.AWAITING_CARD;
     this.playedCardData    = null;
     this.movesRemaining    = 0;
@@ -222,9 +227,6 @@ class GameStateManager {
     this.validMoves        = [];
     this.transmitterActive = false;
 
-    // ── Final-round end check ──────────────────────────────────────────────
-    // The final round ends once the last player of the round (index N-1) has
-    // taken their turn. The player who triggered the final round is the winner.
     if (this.finalRoundTriggered && this.currentPlayerIndex === this.players.length - 1) {
       this.state = GS.GAME_OVER;
       this.emit('hand_updated', { playerId: player.id, hand: player.hand });
@@ -235,7 +237,6 @@ class GameStateManager {
     this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
     const next = this.currentPlayer;
 
-    // Send updated hand to the player who drew, then announce next turn
     this.emit('hand_updated', { playerId: player.id, hand: player.hand });
     this.emit('turn_ended',   { nextPlayerId: next.id, nextPlayerName: next.name });
     return { ok: true };
@@ -248,7 +249,6 @@ class GameStateManager {
 
     const player = this.currentPlayer;
 
-    // Validate all claimed hand cards actually exist in this player's hand
     const spentCards = handCardsUsed
       .map(id => player.hand.find(c => c.instanceId === id))
       .filter(Boolean);
@@ -256,30 +256,32 @@ class GameStateManager {
       return { ok: false, error: 'invalid hand cards' };
     }
 
-    // Calculate purchasing power: hand cards + transmitter bonus if active
     let power = spentCards.reduce((sum, c) => sum + (c.purchasingPower ?? 0), 0);
     if (this.transmitterActive) power += TRANSMITTER_PURCHASE_POWER;
 
-    const card = cardMarket.getCard(cardKey);
+    // BUG FIX 2: Transmitter can buy from reserve as well as shop
+    let card = cardMarket.getCard(cardKey, false);
+    let fromReserve = false;
+    if (!card && this.transmitterActive) {
+      card = cardMarket.getCard(cardKey, true);
+      fromReserve = true;
+    }
     if (!card) return { ok: false, error: 'card not in market' };
     if (power < card.cost) return { ok: false, error: `need ${card.cost} power, have ${power}` };
 
-    // Spend the hand cards
     for (const c of spentCards) player.playCard(c.instanceId);
 
-    const purchased = cardMarket.buyCard(cardKey);
+    const purchased = cardMarket.buyCard(cardKey, fromReserve);
     if (!purchased) return { ok: false, error: 'card sold out' };
     player.discardPile.push(purchased);
 
     this.transmitterActive = false;
 
-    // If the slot just emptied and reserve cards are available, prompt the
-    // buyer to pick which reserve card fills the gap before ending their turn.
-    if (cardMarket.shopCardSoldOut(cardKey)) {
+    // Only prompt for reserve replenishment when buying from the main shop
+    if (!fromReserve && cardMarket.shopCardSoldOut(cardKey)) {
       const available = cardMarket.getAvailableReserve();
       if (available.length > 0) {
         this.pendingReserveSlot = cardKey;
-        // Private event — GameManager routes this only to the buying player
         this.emit('prompt_reserve_choice', {
           playerId,
           soldOutKey: cardKey,
@@ -317,9 +319,14 @@ class GameStateManager {
   _handleSpecialCardPlayed(player, card) {
     switch (card.specialEffect) {
       case CardEffect.TRANSMITTER:
+        // BUG FIX 1: Dispose the Transmitter card NOW (it's one-time-use).
+        // Then open the market. Previously _disposeFinishedCard was never
+        // called because the Transmitter path returned early.
+        player.playCard(card.instanceId); // oneTimeUse=true → goes to removedCards
         this.transmitterActive = true;
         this.state = GS.AWAITING_CARD;
         this.playedCardData = null;
+        this.emit('hand_updated', { playerId: player.id, hand: player.hand });
         this.emit('purchase_opened', { totalPurchasePower: TRANSMITTER_PURCHASE_POWER });
         break;
       case CardEffect.CARTOGRAPHER:
@@ -333,14 +340,14 @@ class GameStateManager {
       case CardEffect.SCIENTIST:
         player.drawCards(1);
         this.selectingCardsToRemove = 1;
-        this.emit('hand_updated',      { playerId: player.id, hand: player.hand });
-        this.emit('prompt_remove_cards',{ playerId: player.id, count: 1 });
+        this.emit('hand_updated',       { playerId: player.id, hand: player.hand });
+        this.emit('prompt_remove_cards', { playerId: player.id, count: 1 });
         break;
       case CardEffect.TRAVEL_LOG:
         player.drawCards(2);
         this.selectingCardsToRemove = 2;
-        this.emit('hand_updated',      { playerId: player.id, hand: player.hand });
-        this.emit('prompt_remove_cards',{ playerId: player.id, count: 2 });
+        this.emit('hand_updated',       { playerId: player.id, hand: player.hand });
+        this.emit('prompt_remove_cards', { playerId: player.id, count: 2 });
         break;
       default:
         break;
@@ -350,12 +357,12 @@ class GameStateManager {
   _recalculateValidMoves() {
     const player = this.currentPlayer;
     this.validMoves = this.board.getValidMoves({
-      currentTileId:  player.currentTileId,
-      playedCard:     this.playedCardData,
-      movesRemaining: this.movesRemaining,
-      wildCardTerrain:this.wildCardTerrain,
-      players:        this.players,
-      handSize:       player.hand.length,
+      currentTileId:   player.currentTileId,
+      playedCard:      this.playedCardData,
+      movesRemaining:  this.movesRemaining,
+      wildCardTerrain: this.wildCardTerrain,
+      players:         this.players,
+      handSize:        player.hand.length,
     });
   }
 
@@ -370,13 +377,35 @@ class GameStateManager {
     this.emit('hand_updated',  { playerId: player.id, hand: player.hand });
   }
 
+  // BUG FIX 3: Discard a partially-used card (player moved at least once but
+  // didn't exhaust all moves, then tried to select a different card).
+  _discardPartialCard(player) {
+    player.playCard(this.playedCardData.instanceId);
+    this.state           = GS.AWAITING_CARD;
+    this.wildCardTerrain = null;
+    this.playedCardData  = null;
+    this.movesRemaining  = 0;
+    this.validMoves      = [];
+    this.emit('hand_updated', { playerId: player.id, hand: player.hand });
+  }
+
   cancelCard(playerId) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
     if (this.state !== GS.AWAITING_MOVE)  return { ok: false, error: 'nothing to cancel' };
+
     const player = this.currentPlayer;
-    this._returnCardToHand();
-    this.emit('card_cancelled', { playerId });
-    this.emit('hand_updated',   { playerId: player.id, hand: player.hand });
+    const hadPartialMove = this.playedCardData &&
+      this.movesRemaining < this.playedCardData.movementTotal;
+
+    if (hadPartialMove) {
+      // Can't cancel after moving — discard the card instead
+      this._discardPartialCard(player);
+      this.emit('card_disposed', { playerId: player.id });
+    } else {
+      this._returnCardToHand();
+      this.emit('card_cancelled', { playerId });
+      this.emit('hand_updated',   { playerId: player.id, hand: player.hand });
+    }
     return { ok: true };
   }
 
