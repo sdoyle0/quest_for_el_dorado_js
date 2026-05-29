@@ -361,9 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         log(`Selected ${card.cardName || card.key}: ${moves.length} target(s) available.`);
       }
-
-      client.playCard(instanceId);
     }
+
+    client.playCard(instanceId);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
