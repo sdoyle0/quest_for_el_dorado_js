@@ -102,6 +102,11 @@ class GameRoom {
     if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
   }
 
+  handleMoveToRubble(socketId, tileId, extraCardIds) {
+    const result = this.gameState.movePawnToRubble(socketId, tileId, extraCardIds);
+    if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });
+  }
+
   handleCancelCard(socketId) {
     const result = this.gameState.cancelCard(socketId);
     if (!result.ok) this.io.to(socketId).emit('action_error', { message: result.error });

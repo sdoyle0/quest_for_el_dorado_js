@@ -211,4 +211,58 @@ class CardUI {
     document.getElementById('end-turn-btn').disabled    = !enabled;
     document.getElementById('open-market-btn').disabled = !enabled;
   }
+
+  enterRubblePaymentMode(count, onConfirm, onCancel) {
+    this._rubbleMode = true;
+    this._rubbleNeeded = count;
+    this._rubblePool = new Map(); // instanceId → card
+    this._rubbleOnConfirm = onConfirm;
+    this._rubbleOnCancel = onCancel;
+    this._renderHandForRubble();
+  }
+
+  exitRubblePaymentMode() {
+    this._rubbleMode = false;
+    this._rubblePool = new Map();
+    this.renderHand(this._currentHand); // restore normal hand
+    // Remove rubble banner if present
+    document.getElementById('hand-messages').innerHTML = '';
+  }
+
+  getRubblePaymentCards() {
+    return [...this._rubblePool.keys()];
+  }
+
+  _renderHandForRubble() {
+  const messages = document.getElementById('hand-messages');
+  messages.innerHTML = `
+    <div style="color:#ffaaaa;font-size:.8rem">☠ Rubble: select ${this._rubbleNeeded} card(s) to discard</div>
+    <button id="rubble-confirm-btn" disabled style="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:.3rem .8rem;cursor:not-allowed;opacity:.4;font-size:.8rem">Move Here</button>
+    <button id="rubble-cancel-btn" style="background:#555;color:#fff;border:none;border-radius:4px;padding:.3rem .8rem;cursor:pointer;font-size:.8rem">Cancel</button>`;
+
+    document.getElementById('rubble-cancel-btn').onclick  = () => this._rubbleOnCancel?.();
+    document.getElementById('rubble-confirm-btn').onclick = () => this._rubbleOnConfirm?.();
+
+    this.handEl.innerHTML = '';
+    for (const card of this._currentHand) {
+      const btn = this._makeCardButton(card, false);
+      btn.addEventListener('click', () => {
+        if (this._rubblePool.has(card.instanceId)) {
+          this._rubblePool.delete(card.instanceId);
+          btn.classList.remove('in-pool');
+        } else if (this._rubblePool.size < this._rubbleNeeded) {
+          this._rubblePool.set(card.instanceId, card);
+          btn.classList.add('in-pool');
+        }
+        const confirmBtn = document.getElementById('rubble-confirm-btn');
+        if (confirmBtn) {
+          const ready = this._rubblePool.size >= this._rubbleNeeded;
+          confirmBtn.disabled = !ready;
+          confirmBtn.style.opacity = ready ? '1' : '.4';
+          confirmBtn.style.cursor  = ready ? 'pointer' : 'not-allowed';
+        }
+      });
+      this.handEl.appendChild(btn);
+    }
+  }
 }

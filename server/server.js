@@ -66,6 +66,11 @@ io.on('connection', (socket) => {
     if (room) room.handleMovePawn(socket.id, tileId);
   });
 
+  socket.on('move_to_rubble', ({ tileId, extraCardIds }) => {
+    const room = gameManager.getRoomForSocket(socket.id);
+    if (room) room.handleMoveToRubble(socket.id, tileId, extraCardIds);
+  });
+
   socket.on('end_turn', () => {
     const room = gameManager.getRoomForSocket(socket.id);
     if (room) room.handleEndTurn(socket.id);

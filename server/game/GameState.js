@@ -163,6 +163,44 @@ class GameStateManager {
     return { ok: true };
   }
 
+  movePawnToRubble(playerId, tileId, extraCardIds = []) {
+    if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
+    if (this.state !== GS.AWAITING_MOVE)  return { ok: false, error: 'wrong state' };
+    if (!this.validMoves.includes(tileId)) return { ok: false, error: 'invalid move' };
+
+    const player = this.currentPlayer;
+    const tile   = this.board.getTile(tileId);
+    const needed = tile.movementCost - 1;
+
+    const extraCards = extraCardIds
+      .map(id => player.hand.find(c => c.instanceId === id))
+      .filter(Boolean);
+    if (extraCards.length !== needed) {
+      return { ok: false, error: `rubble requires ${needed} extra card(s), got ${extraCards.length}` };
+    }
+
+    // Discard extra hand cards
+    for (const card of extraCards) {
+      player.playCard(card.instanceId);
+    }
+
+    // Move the pawn
+    player.currentTileId = tileId;
+    this.emit('pawn_moved', { playerId, tileId });
+
+    if (tile.terrainType === TerrainType.EL_DORADO) {
+      this.state = GS.GAME_OVER;
+      this.emit('game_won', { playerId });
+      return { ok: true };
+    }
+
+    // Dispose the original movement card and reset state
+    // (bypasses the broken path in movePawn that sets selectingCardsForRubble)
+    this._disposeFinishedCard(player);
+
+    return { ok: true };
+  }
+
   // ── End turn ──────────────────────────────────────────────────────────────
   endTurn(playerId) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };

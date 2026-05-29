@@ -79,6 +79,10 @@ class GameClient {
     this.socket.emit('move_pawn', { tileId });
   }
 
+  moveToRubble(tileId, extraCardIds) {
+    this.socket.emit('move_to_rubble', { tileId, extraCardIds });
+  }
+
   endTurn() {
     this.socket.emit('end_turn');
   }

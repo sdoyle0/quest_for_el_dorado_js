@@ -39,6 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedCard = null;
   let selectedValidMoves = [];
   let isMidMove = false;
+  let rubblePendingTileId = null;
+  let rubbleCardsNeeded   = 0;
 
   // ── Debug mode: auto-join immediately on page load ─────────────────────────
   if (DEBUG) {
@@ -143,13 +145,47 @@ document.addEventListener('DOMContentLoaded', () => {
     log('Game started!');
   };
 
+  function exitRubblePaymentMode() {
+    rubblePendingTileId = null;
+    rubbleCardsNeeded = 0;
+    cardUI.exitRubblePaymentMode();
+  }
+
   // ── Board ──────────────────────────────────────────────────────────────────
   renderer.onTileClick = (tileId) => {
-    if (isMidMove && selectedValidMoves.includes(tileId)) {
+    // Already in rubble-payment mode — ignore board clicks
+    if (rubblePendingTileId) return;
+
+    if (!selectedValidMoves.includes(tileId)) return;
+
+    const tile = clientBoard.getTile(tileId);
+    if (tile?.terrainType === 'rubble' && tile.movementCost > 1) {
+      // Enter rubble payment mode instead of moving immediately
+      rubblePendingTileId = tileId;
+      rubbleCardsNeeded = tile.movementCost - 1; // movement card already "pays" 1
+      cardUI.enterRubblePaymentMode(rubbleCardsNeeded, selectedCard?.instanceId, () => {
+        // onConfirm: collect selected cards and fire single event
+        const cardIds = cardUI.getRubblePaymentCards();
+        client.moveToRubble(tileId, cardIds);
+        // Clear movement card state so it can't be re-selected
+        isMidMove = false;
+        selectedCard = null;
+        selectedValidMoves = [];
+        renderer.clearHighlights();
+        exitRubblePaymentMode(); 
+      }, () => {
+        // onCancel
+        exitRubblePaymentMode();
+      });
+
+      return;
+    }
+
+    if (isMidMove) {
       client.movePawn(tileId);
       return;
     }
-    if (selectedCard && selectedValidMoves.includes(tileId)) {
+    if (selectedCard) {
       client.movePawn(tileId);
       return;
     }
@@ -191,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedCard = null;
     selectedValidMoves = [];
     renderer.clearHighlights();
+    exitRubblePaymentMode();
   };
 
   client.onTurnEnded = ({ nextPlayerId, nextPlayerName }) => {
@@ -280,6 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedCard = null;
     selectedValidMoves = [];
     renderer.clearHighlights();
+    exitRubblePaymentMode();
     log(`⚠ ${message}`);
   };
 
