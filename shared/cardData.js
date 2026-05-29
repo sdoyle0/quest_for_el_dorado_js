@@ -51,7 +51,7 @@ const CARD_DEFINITIONS = [
   { key:'compass',       cardName:'Compass',        color:'purple', cost:2, oneTimeUse:true,  specialEffect:'compass',      movementTerrain:'empty',   movementTotal:0 },
   { key:'scientist',     cardName:'Scientist',      color:'purple', cost:4, oneTimeUse:false, specialEffect:'scientist',    movementTerrain:'empty',   movementTotal:0 },
   { key:'travel_log',    cardName:'Travel Log',     color:'purple', cost:3, oneTimeUse:true,  specialEffect:'travel_log',   movementTerrain:'empty',   movementTotal:0 },
-  { key:'native',        cardName:'Native',         color:'purple', cost:5, oneTimeUse:false, specialEffect:'native',       movementTerrain:'empty',   movementTotal:0 },
+  { key:'native',        cardName:'Native',         color:'purple', cost:5, oneTimeUse:false, specialEffect:'native',       movementTerrain:'empty',   movementTotal:1 },
 ];
 
 // Mirrors CardData.getPurchasingPower()
