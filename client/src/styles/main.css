@@ -50,6 +50,8 @@ body {
   background: #0d1b2a;
   display: flex;
   flex-direction: column;
+  min-width: 0; /* prevent flex blowout */
+  position: relative; /* market overlay anchors to this, not the viewport */
 }
 
 #board-container {
@@ -176,9 +178,23 @@ body {
 #hand-controls button:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ── Market overlay ──────────────────────────────────────────────────────── */
+/*
+ * Anchored inside #board-and-hand-container (position: relative) so it
+ * sits above the board without covering the hand. The hand stays fully
+ * interactive below it while the market is open.
+ *
+ * bottom: 140px  = hand height
+ * left/right: 0  = full width of the board+hand column, no sidebar offset
+ *
+ * Previously used a fixed right: 220px that hard-coded the sidebar width.
+ * Now it's contained within its flex parent so it doesn't need to know
+ * about the sidebar at all.
+ */
 #card-market {
   position: absolute;
-  bottom: 140px; left: 0; right: 220px;
+  bottom: 140px;
+  left: 0;
+  right: 0;
   background: #0d2035;
   border-top: 2px solid #c0a830;
   padding: .75rem;
@@ -186,6 +202,7 @@ body {
   max-height: 55vh;
   overflow-y: auto;
 }
+
 #market-header {
   display: flex;
   justify-content: space-between;
@@ -195,7 +212,27 @@ body {
   font-weight: bold;
 }
 
-/* Shop slots container — now vertical (shop row + reserve row) */
+#purchase-total {
+  font-size: .9rem;
+  color: #ffd700;
+}
+
+#cancel-purchase-btn {
+  padding: .2rem .6rem;
+  border: 1px solid #555;
+  background: #1a2a3a;
+  color: #aaa;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: .8rem;
+  transition: background .15s, color .15s;
+}
+#cancel-purchase-btn:hover {
+  background: #2a3a4a;
+  color: #fff;
+}
+
+/* Shop slots container — vertical sections */
 #shop-slots {
   display: flex;
   flex-direction: column;

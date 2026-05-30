@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const boardEl     = document.getElementById('hex-board');
   const zoomInBtn   = document.getElementById('zoom-in-btn');
   const zoomOutBtn  = document.getElementById('zoom-out-btn');
-  const debugBtn    = document.getElementById('debug-btn');
 
   let boardZoom = 1;
   const BOARD_ZOOM_STEP = 0.25;
@@ -66,15 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBoardZoom();
   });
 
-  // Debug button only wired up in debug mode
-  if (DEBUG) {
-    debugBtn?.addEventListener('click', () => {
-      client.debugState();
-    });
-  } else {
-    debugBtn?.remove();
-  }
-
   if (DEBUG) {
     const panel = document.createElement('div');
     panel.id = 'debug-panel';
@@ -92,6 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
       <button class="debug-preset" data-hand="transmitter,scout,scout,explorer">Transmitter</button>
       <button class="debug-preset" data-hand="pioneer,giant_machete,adventurer,prop_plane">Speed run</button>
       <button class="debug-preset" data-hand="scientist,travel_log,cartographer,compass">Purple hand</button>
+    </div>
+    <div>
+      <button id="debug-btn">Debug State</button>
     </div>
   `;
     document.getElementById('game-screen').appendChild(panel);
@@ -113,6 +106,10 @@ document.addEventListener('DOMContentLoaded', () => {
         client.debugSetHand(keys);
         document.getElementById('debug-hand-input').value = btn.dataset.hand;
       });
+    });
+
+    document.getElementById('debug-btn').addEventListener('click', () => {
+      client.debugState();
     });
 
     // Shift+click any tile to teleport instead of move
