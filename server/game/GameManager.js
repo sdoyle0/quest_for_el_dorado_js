@@ -11,7 +11,7 @@ class GameRoom {
     this.roomId     = roomId;
     this.io         = io;
     this.players    = [];
-    this.maxPlayers = Math.min(4, Math.max(2, maxPlayers));
+    this.maxPlayers = Math.min(4, Math.max(debugMode ? 1 : 2, maxPlayers));
     this.debugMode  = debugMode;
     this.started    = false;
     this.hostId     = null; // socketId of the room creator
@@ -87,7 +87,8 @@ class GameRoom {
   tryStartGame(socketId) {
     if (socketId !== this.hostId) return { ok: false, error: 'only the host can start the game' };
     if (this.started)             return { ok: false, error: 'game already started' };
-    if (this.players.length < 2)  return { ok: false, error: 'need at least 2 players' };
+    const minPlayers = this.debugMode ? 1 : 2;
+    if (this.players.length < minPlayers) return { ok: false, error: 'need at least 2 players' };
     this._startGame();
     return { ok: true };
   }
@@ -201,7 +202,7 @@ class GameManager {
   // Legacy: auto-join or create — kept for debug mode
   joinOrCreateRoom(socket, playerName, { debugMode = false } = {}) {
     if (debugMode) {
-      return this.createRoom(socket, playerName, { debugMode: true, maxPlayers: 1 });
+      return this.createRoom(socket, playerName, { debugMode: true, maxPlayers: 2 });
     }
     // Fall back to old behaviour (find any open 2-player room)
     let room = [...this.rooms.values()].find(r => !r.started && r.players.length < r.maxPlayers && !r.debugMode);

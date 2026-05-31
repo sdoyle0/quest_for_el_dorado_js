@@ -42,10 +42,10 @@ io.on('connection', (socket) => {
   // ── Lobby: create a new room ───────────────────────────────────────────────
   // playerCount: 2 | 3 | 4
   socket.on('create_room', ({ playerName, playerCount = 2, debugMode = false }) => {
-    const count = Math.min(4, Math.max(2, Number(playerCount) || 2));
+    const count = Math.min(4, Math.max(1, Number(playerCount) || 2));
     const { room, player } = gameManager.createRoom(socket, playerName, {
       debugMode,
-      maxPlayers: debugMode ? 1 : count,
+      maxPlayers: count,
     });
     socket.emit('joined_room', {
       roomId:       room.roomId,

@@ -112,15 +112,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const isHost     = client.isHost;
-    const canStart   = isHost && players.length >= 2;
+    const canStart   = isHost && (players.length >= 2 || (DEBUG && players.length >= 1));
     startGameBtn.disabled   = !canStart;
     startGameBtn.style.opacity = canStart ? '1' : '0.4';
     startGameBtn.style.cursor  = canStart ? 'pointer' : 'not-allowed';
 
     if (!isHost) {
       waitingHint.textContent = 'Waiting for the host to start…';
-    } else if (players.length < 2) {
+    } else if (players.length < 2 && !DEBUG) {
       waitingHint.textContent = 'Need at least 2 players to start.';
+    } else if (players.length < 2 && DEBUG) {
+      waitingHint.textContent = 'Debug mode: you can start solo or wait for others.';
     } else if (players.length < maxPlayers) {
       waitingHint.textContent = `You can start now, or wait for ${maxPlayers - players.length} more.`;
     } else {
@@ -134,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!name) { setLobbyError('Enter your name first.'); return; }
     setLobbyInfo('Creating room…');
     createRoomBtn.disabled = true;
-    client.createRoom(name, selectedPlayerCount);
+    client.createRoom(name, selectedPlayerCount, DEBUG);
   });
 
   joinRoomBtn.addEventListener('click', () => {
@@ -173,10 +175,10 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBoardZoom();
   });
 
-  // ── Debug mode: auto-join immediately ─────────────────────────────────────
+  // ── Debug mode: mark title, but use the normal lobby flow ────────────────
   if (DEBUG) {
     document.title += ' [DEBUG]';
-    setTimeout(() => client.joinGame('Debug Player', true), 100);
+    nameInput.value = 'Debug Player';
   }
 
   // ── Client callbacks ───────────────────────────────────────────────────────
@@ -265,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedCard = null;
         selectedValidMoves = [];
         renderer.clearHighlights();
-        exitRubblePaymentMode(); 
+        exitRubblePaymentMode();
       }, () => {
         // onCancel
         exitRubblePaymentMode();
