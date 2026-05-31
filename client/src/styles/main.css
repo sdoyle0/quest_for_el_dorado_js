@@ -302,7 +302,7 @@ body {
 
 /* Player hand */
 #player-hand-ui {
-  height: 140px;
+  height: 160px;
   background: #0f3460;
   border-top: 2px solid #ffd700;
   display: flex;
@@ -321,8 +321,9 @@ body {
   flex: 1;
 }
 .card-btn {
-  min-width: 90px;
-  padding: .4rem .5rem;
+  min-width: 110px;
+  max-width: 140px;
+  padding: .5rem .6rem;
   background: #1e3a5f;
   border: 3px solid #4a7aad;
   border-radius: 6px;
@@ -331,13 +332,17 @@ body {
   font-size: .75rem;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  justify-content: space-between;
   transition: background .15s;
 }
 .card-btn:hover { border-color: hotpink; }
 .card-btn.selected { border-color: deeppink; }
-.card-name { font-weight: bold; }
-.card-gold { color: #ffd700; }
+.card-name { font-weight: bold; font-size: .85rem; }
+.card-moves { font-size: .9rem; }
+.card-gold { color: #ffd700; font-size: .8rem; }
+.card-onetime { color: #ffaaaa; font-size: .65rem; font-style: italic; margin-top: auto; }
+.card-effect-desc { color: #ddd; font-size: .65rem; line-height: 1.2; opacity: .9; }
 
 #hand-controls {
   display: flex;
@@ -372,7 +377,7 @@ body {
  */
 #card-market {
   position: absolute;
-  bottom: 140px;
+  bottom: 160px;
   left: 0;
   right: 0;
   background: #0d2035;
@@ -449,21 +454,23 @@ body {
 }
 
 .market-card {
-  min-width: 90px;
-  padding: .4rem .5rem;
+  min-width: 120px;
+  max-width: 160px;
+  padding: .5rem .6rem;
   background: #1e3a5f;
-  border: 1px solid #c0a830;
+  border: 2px solid #c0a830;
   border-radius: 6px;
   color: #fff;
   cursor: pointer;
   font-size: .75rem;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 .market-card.empty { opacity: .4; cursor: default; }
-.market-card:not(.empty):not(.reserve-locked):hover { background: #2a5080; }
-.card-cost { color: #ffd700; }
+.market-card:not(.empty):not(.reserve-locked):hover { background: #2a5080; border-color: #ffd700; }
+.card-cost { color: #ffd700; font-size: .75rem; }
+.card-remaining { color: #aaa; font-size: .65rem; }
 .card-effect { color: #c0a830; font-size: .7rem; }
 
 /* Reserve cards when NOT bought via Transmitter — greyed out, no hover */
@@ -520,6 +527,20 @@ body {
 .card-btn.terrain-water { background: #0000ffbb;}
 .card-btn.terrain-village { background: #eac200bb; }
 .card-btn.terrain-jungle { background: #007600bb; }
+.card-btn.terrain-wild { background: #333333bb; }
+.card-btn.terrain-empty { background: #7b2fa0bb; }
+
+/* Market cards also get terrain colors */
+.market-card.terrain-jungle { background: #005a00cc; }
+.market-card.terrain-water { background: #002299cc; }
+.market-card.terrain-village { background: #8a7200cc; }
+.market-card.terrain-wild { background: #2a2a2acc; }
+.market-card.terrain-empty { background: #4a1570cc; }
+.market-card.market-reserve.terrain-jungle { background: #003a00cc; }
+.market-card.market-reserve.terrain-water { background: #001a66cc; }
+.market-card.market-reserve.terrain-village { background: #5a4a00cc; }
+.market-card.market-reserve.terrain-wild { background: #1a1a1acc; }
+.market-card.market-reserve.terrain-empty { background: #2a0a40cc; }
 
 /* Purchase pool selection */
 .card-btn.in-pool {
@@ -533,13 +554,26 @@ body {
   font-weight: bold;
 }
 
-/* Market: cant-afford state */
+/* Market: affordable state — bright border to show purchasable */
+.market-card.can-afford {
+  border-color: #4cff4c;
+  box-shadow: 0 0 8px rgba(76, 255, 76, .4), inset 0 0 12px rgba(76, 255, 76, .08);
+}
+.market-card.can-afford:hover {
+  border-color: #7fff7f;
+  box-shadow: 0 0 12px rgba(76, 255, 76, .6), inset 0 0 16px rgba(76, 255, 76, .12);
+}
+
+/* Market: cant-afford state — heavily dimmed and desaturated */
 .market-card.cant-afford {
-  opacity: 0.45;
+  opacity: 0.35;
+  filter: saturate(0.3) brightness(0.7);
   cursor: not-allowed;
+  border-color: #333;
 }
 .market-card.cant-afford:hover {
-  background: #1e3a5f;
+  opacity: 0.4;
+  filter: saturate(0.3) brightness(0.7);
 }
 
 /* ── Reserve picker overlay ─────────────────────────────────────────────── */

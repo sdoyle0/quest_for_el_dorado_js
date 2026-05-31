@@ -185,16 +185,46 @@ class CardUI {
     btn.className = 'card-btn' + (card.movementTerrain ? ` terrain-${card.movementTerrain}` : '');
     btn.dataset.instanceId = card.instanceId;
 
-    const movesLabel  = card.movementTotal > 0 ? `▶ ${card.movementTotal}` : '&nbsp;';
-    const oneTimeLabel = card.oneTimeUse ? ' ❌' : '';
+    const terrainIcon = this._terrainIcon(card.movementTerrain);
+    const movesLabel  = card.movementTotal > 0
+      ? `<span class="card-moves">${terrainIcon} ${card.movementTotal}</span>` : '';
+    const oneTimeLabel = card.oneTimeUse ? '<span class="card-onetime">⚡ One-time</span>' : '';
     const powerLabel  = card.purchasingPower
       ? `<span class="card-gold">💰 ${card.purchasingPower}</span>` : '';
+    const effectDesc = this._specialDescription(card.specialEffect);
+    const effectLabel = effectDesc
+      ? `<span class="card-effect-desc">${effectDesc}</span>` : '';
 
     btn.innerHTML = `
       <span class="card-name">${card.cardName || card.key}</span>
-      <span class="card-moves">${movesLabel}${oneTimeLabel}</span>
-      ${powerLabel}`;
+      ${movesLabel}
+      ${powerLabel}
+      ${effectLabel}
+      ${oneTimeLabel}`;
     return btn;
+  }
+
+  _terrainIcon(terrain) {
+    switch (terrain) {
+      case 'jungle':  return '🌿';
+      case 'water':   return '🌊';
+      case 'village': return '🏘️';
+      case 'wild':    return '🧭';
+      case 'empty':   return '✨';
+      default:        return '';
+    }
+  }
+
+  _specialDescription(effect) {
+    switch (effect) {
+      case 'transmitter':  return '📡 Buy from reserve';
+      case 'cartographer': return '🗺️ Draw 2 extra cards';
+      case 'compass':      return '🧭 Remove 1 card from game';
+      case 'scientist':    return '🔬 Treat as any terrain (1)';
+      case 'travel_log':   return '📖 Reuse a played card';
+      case 'native':       return '🏹 Wild move + draw 1 card';
+      default:             return '';
+    }
   }
 
   // ── Mode transitions ─────────────────────────────────────────────────────
@@ -301,20 +331,25 @@ class CardUI {
 
     const btn = document.createElement('button');
     const reserveClass = isReserve ? ' market-reserve' : '';
-    btn.className = `market-card${reserveClass}`;
+    const terrainClass = card.movementTerrain ? ` terrain-${card.movementTerrain}` : '';
+    btn.className = `market-card${reserveClass}${terrainClass}`;
     btn.dataset.cardKey = card.key;
 
-    const movesLabel  = card.movementTotal > 0 ? `▶ ${card.movementTotal}` : '&nbsp;';
-    const oneTimeLabel = card.oneTimeUse ? ' ❌' : '';
-    const effectLabel = card.specialEffect && card.specialEffect !== 'none'
-      ? `<span class="card-effect">★ ${card.specialEffect.replace(/_/g, ' ')}</span>` : '';
+    const terrainIcon = this._terrainIcon(card.movementTerrain);
+    const movesLabel  = card.movementTotal > 0
+      ? `<span class="card-moves">${terrainIcon} ${card.movementTotal}</span>` : '';
+    const oneTimeLabel = card.oneTimeUse ? '<span class="card-onetime">⚡ One-time</span>' : '';
+    const effectDesc = this._specialDescription(card.specialEffect);
+    const effectLabel = effectDesc
+      ? `<span class="card-effect-desc">${effectDesc}</span>` : '';
 
     btn.innerHTML = `
       <span class="card-name">${card.cardName}</span>
-      <span class="card-moves">${movesLabel}${oneTimeLabel}</span>
-      <span class="card-cost">Cost: ${card.cost}</span>
-      <span class="card-remaining">×${card.remaining}</span>
-      ${effectLabel}`;
+      ${movesLabel}
+      <span class="card-cost">💰 Cost: ${card.cost}</span>
+      <span class="card-remaining">×${card.remaining} left</span>
+      ${effectLabel}
+      ${oneTimeLabel}`;
 
     if (isReserve && !transmitterActive) {
       btn.classList.add('reserve-locked');
@@ -360,8 +395,10 @@ class CardUI {
     this.shopEl.querySelectorAll('.market-card:not(.empty):not(.reserve-locked)').forEach(btn => {
       const costEl = btn.querySelector('.card-cost');
       if (!costEl) return;
-      const cost = parseFloat(costEl.textContent.replace('Cost: ', ''));
-      btn.classList.toggle('cant-afford', power < cost);
+      const cost = parseFloat(costEl.textContent.replace(/[^0-9.]/g, ''));
+      const affordable = power >= cost;
+      btn.classList.toggle('cant-afford', !affordable);
+      btn.classList.toggle('can-afford', affordable);
     });
   }
 
