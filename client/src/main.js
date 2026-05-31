@@ -39,8 +39,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Game UI refs ───────────────────────────────────────────────────────────
   const playerLabel = document.getElementById('current-player-label');
+  const turnBanner  = document.getElementById('turn-banner');
+  const turnDot     = document.getElementById('turn-color-dot');
+  const legendEl    = document.getElementById('player-legend');
   const logEl       = document.getElementById('game-log');
   const boardEl     = document.getElementById('hex-board');
+  const handUI      = document.getElementById('player-hand-ui');
   const zoomInBtn   = document.getElementById('zoom-in-btn');
   const zoomOutBtn  = document.getElementById('zoom-out-btn');
 
@@ -459,9 +463,59 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Helpers ────────────────────────────────────────────────────────────────
   function updateTurnLabel(currentPlayerId) {
     const isMe = client.isMyTurn(currentPlayerId);
+    const idx  = allPlayers.findIndex(p => p.id === currentPlayerId);
     const p    = allPlayers.find(p => p.id === currentPlayerId);
-    playerLabel.textContent = isMe ? '▶ Your turn' : `${p?.name || '?'}'s turn`;
+    const color = PAWN_COLORS[idx] || '#aaa';
+
+    playerLabel.textContent = isMe ? '▶ YOUR TURN' : `${p?.name || '?'}'s turn`;
+    turnDot.style.background = color;
+    turnBanner.style.color = color;
+    turnBanner.style.borderColor = color;
+
+    if (isMe) {
+      turnBanner.classList.add('my-turn');
+    } else {
+      turnBanner.classList.remove('my-turn');
+    }
+
+    // Update hand border color to show active player's color
+    handUI.style.borderTopColor = isMe ? color : '#555';
+
+    renderPlayerLegend(currentPlayerId);
     cardUI.setControlsEnabled(isMe);
+  }
+
+  function renderPlayerLegend(currentPlayerId) {
+    legendEl.innerHTML = '';
+    allPlayers.forEach((p, i) => {
+      const row = document.createElement('div');
+      row.className = 'legend-row' + (p.id === currentPlayerId ? ' active-player' : '');
+
+      const arrow = document.createElement('span');
+      arrow.className = 'legend-turn-arrow';
+      arrow.textContent = '▶';
+
+      const dot = document.createElement('span');
+      dot.className = 'legend-dot';
+      dot.style.background = PAWN_COLORS[i];
+
+      const name = document.createElement('span');
+      name.className = 'legend-name';
+      name.textContent = p.name || `Player ${i + 1}`;
+
+      row.appendChild(arrow);
+      row.appendChild(dot);
+      row.appendChild(name);
+
+      if (p.id === client.playerId) {
+        const you = document.createElement('span');
+        you.className = 'legend-you';
+        you.textContent = '(you)';
+        row.appendChild(you);
+      }
+
+      legendEl.appendChild(row);
+    });
   }
 
   function log(msg) {

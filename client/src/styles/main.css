@@ -173,6 +173,23 @@ body {
 }
 
 /* ── Waiting Room ────────────────────────────────────────────────────────── */
+.waiting-player-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .3rem .4rem;
+}
+.waiting-player-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,.2);
+  flex-shrink: 0;
+}
+.waiting-player-name {
+  font-size: .85rem;
+}
+
 #room-code-display {
   font-size: 1rem;
   color: #aaa;
@@ -288,7 +305,92 @@ body {
   gap: .5rem;
   border-left: 1px solid #2a2a5a;
 }
+
+/* ── Turn banner ─────────────────────────────────────────────────────────── */
+#turn-banner {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .6rem .75rem;
+  border-radius: 8px;
+  background: #0d1b2a;
+  border: 2px solid #444;
+  transition: border-color .3s, box-shadow .3s, background .3s;
+}
+#turn-banner.my-turn {
+  border-color: currentColor;
+  box-shadow: 0 0 12px currentColor, inset 0 0 8px rgba(255,255,255,.05);
+  animation: pulse-turn 1.5s ease-in-out infinite;
+}
+@keyframes pulse-turn {
+  0%, 100% { box-shadow: 0 0 8px currentColor; }
+  50% { box-shadow: 0 0 18px currentColor, 0 0 30px currentColor; }
+}
+#turn-color-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #444;
+  border: 2px solid rgba(255,255,255,.3);
+  flex-shrink: 0;
+  transition: background .3s;
+}
 #current-player-label { font-size: .9rem; color: #ffd700; font-weight: bold; }
+
+/* ── Player legend ───────────────────────────────────────────────────────── */
+#player-legend {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  padding: .5rem .5rem;
+  background: #0d1b2a;
+  border-radius: 6px;
+  border: 1px solid #2a2a5a;
+}
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .2rem .3rem;
+  border-radius: 4px;
+  transition: background .2s;
+}
+.legend-row.active-player {
+  background: rgba(255, 255, 255, .08);
+}
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(255,255,255,.25);
+}
+.legend-name {
+  font-size: .78rem;
+  color: #bbb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.legend-row.active-player .legend-name {
+  color: #fff;
+  font-weight: bold;
+}
+.legend-you {
+  font-size: .65rem;
+  color: #ffd700;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.legend-turn-arrow {
+  font-size: .75rem;
+  margin-right: .1rem;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.legend-row.active-player .legend-turn-arrow {
+  opacity: 1;
+}
 #game-log {
   flex: 1;
   overflow-y: auto;
@@ -304,11 +406,12 @@ body {
 #player-hand-ui {
   height: 160px;
   background: #0f3460;
-  border-top: 2px solid #ffd700;
+  border-top: 3px solid #ffd700;
   display: flex;
   flex-direction: row;
   padding: .5rem;
   gap: .5rem;
+  transition: border-top-color .3s;
 }
 #hand-cards {
   display: flex;
