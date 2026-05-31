@@ -41,6 +41,58 @@ class CardUI {
 
     this._bindControls();
     this._bindHandDelegate();
+    this._createInfoModal();
+    this._bindInfoDelegates();
+  }
+
+  // ── Info modal for special card descriptions ────────────────────────────
+
+  _createInfoModal() {
+    const overlay = document.createElement('div');
+    overlay.id = 'card-info-modal';
+    overlay.className = 'card-info-modal hidden';
+    overlay.innerHTML = `
+      <div class="card-info-modal-content">
+        <h3 class="card-info-modal-title"></h3>
+        <p class="card-info-modal-text"></p>
+        <button class="card-info-modal-close">Got it</button>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay || e.target.classList.contains('card-info-modal-close')) {
+        overlay.classList.add('hidden');
+      }
+    });
+  }
+
+  _bindInfoDelegates() {
+    // Delegate info button clicks on both hand and market areas
+    document.addEventListener('click', (e) => {
+      const infoBtn = e.target.closest('.card-info-btn');
+      if (!infoBtn) return;
+      e.stopPropagation();
+      e.preventDefault();
+      const effect = infoBtn.dataset.effect;
+      if (!effect) return;
+      this._showInfoModal(effect);
+    });
+  }
+
+  _showInfoModal(effect) {
+    const modal = document.getElementById('card-info-modal');
+    const title = modal.querySelector('.card-info-modal-title');
+    const text = modal.querySelector('.card-info-modal-text');
+
+    const names = {
+      transmitter: 'Transmitter', cartographer: 'Cartographer',
+      compass: 'Compass', scientist: 'Scientist',
+      travel_log: 'Travel Log', native: 'Native',
+    };
+
+    title.textContent = names[effect] || effect;
+    text.textContent = this._specialFullDescription(effect);
+    modal.classList.remove('hidden');
   }
 
   // ── Static control bindings ──────────────────────────────────────────────
@@ -192,10 +244,14 @@ class CardUI {
     const powerLabel  = card.purchasingPower
       ? `<span class="card-gold">💰 ${card.purchasingPower}</span>` : '';
     const effectDesc = this._specialDescription(card.specialEffect);
+    const fullDesc = this._specialFullDescription(card.specialEffect);
     const effectLabel = effectDesc
       ? `<span class="card-effect-desc">${effectDesc}</span>` : '';
+    const infoBtn = fullDesc
+      ? `<span class="card-info-btn" data-effect="${card.specialEffect}" title="Details">ℹ️</span>` : '';
 
     btn.innerHTML = `
+      ${infoBtn}
       <span class="card-name">${card.cardName || card.key}</span>
       ${movesLabel}
       ${powerLabel}
@@ -217,13 +273,32 @@ class CardUI {
 
   _specialDescription(effect) {
     switch (effect) {
-      case 'transmitter':  return '📡 Buy from reserve';
+      case 'transmitter':  return '📡 Free card from market';
       case 'cartographer': return '🗺️ Draw 2 extra cards';
-      case 'compass':      return '🧭 Remove 1 card from game';
-      case 'scientist':    return '🔬 Treat as any terrain (1)';
-      case 'travel_log':   return '📖 Reuse a played card';
-      case 'native':       return '🏹 Wild move + draw 1 card';
+      case 'compass':      return '🧭 Draw 3 cards';
+      case 'scientist':    return '🔬 Draw 1 + remove a card';
+      case 'travel_log':   return '📖 Draw 2 + remove up to 2';
+      case 'native':       return '🏹 Move 1 any space';
       default:             return '';
+    }
+  }
+
+  _specialFullDescription(effect) {
+    switch (effect) {
+      case 'transmitter':
+        return 'When you play the Transmitter you may take any expedition card without paying for it. Choose any card on the market board or above it. Put the new card on your discard pile, as usual. The Transmitter is removed from the game after use.';
+      case 'cartographer':
+        return 'The Cartographer allows you to draw 2 cards from your draw pile and play them this turn. If your draw pile is empty, first shuffle your discard pile as usual, then draw.';
+      case 'compass':
+        return 'The Compass allows you to draw 3 cards, but you must remove the Compass from the game after use.';
+      case 'scientist':
+        return 'Use the Scientist to optimize your expedition. She allows you to immediately draw an additional card and then, if you want to, you may remove any card in your hand from the game.';
+      case 'travel_log':
+        return 'The Travel Log lets you draw 2 cards and then remove up to 2 cards in your hand from the game. Unfortunately, the Travel Log also removes itself from the game.';
+      case 'native':
+        return 'The Native knows the lay of the land and always lets you move one space when played. Ignore that space\'s requirements and just place your playing piece on it. The Native can also tear down blockades, but you cannot use it to move to an occupied space or onto a mountain space.';
+      default:
+        return '';
     }
   }
 
@@ -340,10 +415,14 @@ class CardUI {
       ? `<span class="card-moves">${terrainIcon} ${card.movementTotal}</span>` : '';
     const oneTimeLabel = card.oneTimeUse ? '<span class="card-onetime">⚡ One-time</span>' : '';
     const effectDesc = this._specialDescription(card.specialEffect);
+    const fullDesc = this._specialFullDescription(card.specialEffect);
     const effectLabel = effectDesc
       ? `<span class="card-effect-desc">${effectDesc}</span>` : '';
+    const infoBtn = fullDesc
+      ? `<span class="card-info-btn" data-effect="${card.specialEffect}" title="Details">ℹ️</span>` : '';
 
     btn.innerHTML = `
+      ${infoBtn}
       <span class="card-name">${card.cardName}</span>
       ${movesLabel}
       <span class="card-cost">💰 Cost: ${card.cost}</span>
@@ -353,7 +432,6 @@ class CardUI {
 
     if (isReserve && !transmitterActive) {
       btn.classList.add('reserve-locked');
-      btn.disabled = true;
     } else {
       btn.addEventListener('click', () => this._onMarketCardClicked(card));
     }
