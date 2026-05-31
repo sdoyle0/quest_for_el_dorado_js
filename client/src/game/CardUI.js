@@ -1,4 +1,10 @@
 // client/src/game/CardUI.js
+//
+// Cards are rendered once into #hand-cards and kept in the DOM.
+// A single delegated click handler on the container dispatches to the right
+// action based on this._mode ('movement' | 'market' | 'rubble').
+// Pool membership (market selection, rubble selection) is reflected by
+// toggling CSS classes on the existing buttons — no rebuilds.
 
 class CardUI {
   constructor() {
@@ -7,20 +13,37 @@ class CardUI {
     this.totalEl  = document.getElementById('purchase-total');
     this.marketEl = document.getElementById('card-market');
 
+    // Callbacks — set by main.js
     this.onCardPlayed     = null; // (instanceId) — play for movement
     this.onMarketCard     = null; // ({ cardKey, handCardsUsed }) — purchase
     this.onEndTurn        = null;
     this.onCancelPurchase = null;
     this.onDiscardClicked = null;
 
-    this._marketMode       = false;
-    this._purchasePool     = new Map(); // instanceId → card
-    this._transmitterBonus = 0;
+    // ── Mode ────────────────────────────────────────────────────────────────
+    // 'movement' | 'market' | 'rubble'
+    this._mode = 'movement';
+
+    // ── Shared state ────────────────────────────────────────────────────────
     this._currentHand      = [];
-    this._lastMarket       = null; // { shop, reserve } — cached for re-render
+    this._lastMarket       = null;
+
+    // ── Market state ────────────────────────────────────────────────────────
+    this._transmitterBonus = 0;
+    this._purchasePool     = new Map(); // instanceId → card
+
+    // ── Rubble state ────────────────────────────────────────────────────────
+    this._rubbleNeeded    = 0;
+    this._rubblePool      = new Map(); // instanceId → card
+    this._rubbleExcludeId = null;
+    this._rubbleOnConfirm = null;
+    this._rubbleOnCancel  = null;
 
     this._bindControls();
+    this._bindHandDelegate();
   }
+
+  // ── Static control bindings ──────────────────────────────────────────────
 
   _bindControls() {
     document.getElementById('end-turn-btn').addEventListener('click', () => this.onEndTurn?.());
@@ -29,97 +52,200 @@ class CardUI {
     document.getElementById('cancel-purchase-btn').addEventListener('click', () => this.closeMarket());
   }
 
-  // ── Market open/close ──────────────────────────────────────────────────────
+  // ── Single delegated click handler on #hand-cards ────────────────────────
 
-  openMarket(transmitterBonus = 0) {
-    this._marketMode       = true;
-    this._transmitterBonus = transmitterBonus;
-    this._purchasePool.clear();
-    this.marketEl.classList.remove('hidden');
-    this._renderHandInMarketMode();
-    if (this._lastMarket) this.renderMarket(this._lastMarket);
+  _bindHandDelegate() {
+    this.handEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('.card-btn');
+      if (!btn) return;
+      const instanceId = btn.dataset.instanceId;
+      if (!instanceId) return;
+
+      if (this._mode === 'movement') {
+        this._handleMovementClick(instanceId, btn);
+      } else if (this._mode === 'market') {
+        this._handleMarketPoolClick(instanceId, btn);
+      } else if (this._mode === 'rubble') {
+        this._handleRubblePoolClick(instanceId, btn);
+      }
+    });
+  }
+
+  _handleMovementClick(instanceId) {
+    this.onCardPlayed?.(instanceId);
+  }
+
+  _handleMarketPoolClick(instanceId, btn) {
+    const card = this._currentHand.find(c => c.instanceId === instanceId);
+    if (!card) return;
+
+    if (this._purchasePool.has(instanceId)) {
+      this._purchasePool.delete(instanceId);
+      btn.classList.remove('in-pool');
+    } else {
+      this._purchasePool.set(instanceId, card);
+      btn.classList.add('in-pool');
+    }
     this._updatePurchaseTotal();
   }
 
-  closeMarket() {
-    this._marketMode       = false;
-    this._transmitterBonus = 0;
-    this._purchasePool.clear();
-    this.marketEl.classList.add('hidden');
-    this.renderHand(this._currentHand);
+  _handleRubblePoolClick(instanceId, btn) {
+    if (instanceId === this._rubbleExcludeId) return;
+    const card = this._currentHand.find(c => c.instanceId === instanceId);
+    if (!card) return;
+
+    if (this._rubblePool.has(instanceId)) {
+      this._rubblePool.delete(instanceId);
+      btn.classList.remove('in-pool');
+    } else if (this._rubblePool.size < this._rubbleNeeded) {
+      this._rubblePool.set(instanceId, card);
+      btn.classList.add('in-pool');
+    }
+    this._syncRubbleConfirmButton();
   }
 
-  // Called when server emits purchase_opened (Transmitter card played)
-  openMarketWithBonus(totalPurchasePower) {
-    this.openMarket(totalPurchasePower);
-  }
-
-  // ── Hand rendering ─────────────────────────────────────────────────────────
+  // ── Core hand render — called once per hand change ───────────────────────
+  //
+  // Diffs the DOM against this._currentHand:
+  //   • Cards no longer in hand → removed
+  //   • Cards already rendered → updated in-place (name/stats may change on
+  //     debug hand-set; instanceId is the stable key)
+  //   • New cards → appended
+  //
+  // After the diff, _syncHandState() applies the correct CSS classes for the
+  // current mode (selected, in-pool, rubble-excluded, etc.) without touching
+  // innerHTML.
 
   renderHand(cards) {
     this._currentHand = cards;
-    if (this._marketMode) {
-      this._renderHandInMarketMode();
-    } else {
-      this._renderHandForMovement();
+
+    const existingIds = new Set(
+      [...this.handEl.querySelectorAll('.card-btn')].map(b => b.dataset.instanceId)
+    );
+    const incomingIds = new Set(cards.map(c => c.instanceId));
+
+    // Remove cards no longer in hand
+    for (const btn of [...this.handEl.querySelectorAll('.card-btn')]) {
+      if (!incomingIds.has(btn.dataset.instanceId)) btn.remove();
+    }
+
+    // Add new cards (append in hand order)
+    for (const card of cards) {
+      if (!existingIds.has(card.instanceId)) {
+        this.handEl.appendChild(this._makeCardButton(card));
+      }
+    }
+
+    // Ensure DOM order matches hand order
+    for (const card of cards) {
+      const btn = this.handEl.querySelector(`[data-instance-id="${CSS.escape(card.instanceId)}"]`);
+      if (btn) this.handEl.appendChild(btn); // appendChild moves if already present
+    }
+
+    // Prune stale pool entries (cards that left the hand)
+    for (const id of [...this._purchasePool.keys()]) {
+      if (!incomingIds.has(id)) this._purchasePool.delete(id);
+    }
+    for (const id of [...this._rubblePool.keys()]) {
+      if (!incomingIds.has(id)) this._rubblePool.delete(id);
+    }
+
+    this._syncHandState();
+    if (this._mode === 'market') this._updatePurchaseTotal();
+  }
+
+  // Apply CSS classes to every card button to reflect current mode + pools.
+  _syncHandState() {
+    for (const btn of this.handEl.querySelectorAll('.card-btn')) {
+      const id = btn.dataset.instanceId;
+
+      // Rubble-excluded cards are visually dimmed and non-interactive
+      const excluded = this._mode === 'rubble' && id === this._rubbleExcludeId;
+      btn.classList.toggle('rubble-excluded', excluded);
+      btn.disabled = excluded;
+
+      // Pool membership
+      if (this._mode === 'market') {
+        btn.classList.toggle('in-pool', this._purchasePool.has(id));
+        btn.classList.remove('selected');
+      } else if (this._mode === 'rubble') {
+        btn.classList.toggle('in-pool', this._rubblePool.has(id));
+        btn.classList.remove('selected');
+      } else {
+        btn.classList.remove('in-pool');
+        btn.disabled = false;
+      }
     }
   }
 
-  _renderHandForMovement() {
-    this.handEl.innerHTML = '';
-    for (const card of this._currentHand) {
-      const btn = this._makeCardButton(card, false);
-      btn.addEventListener('click', () => this.onCardPlayed?.(card.instanceId));
-      this.handEl.appendChild(btn);
-    }
-  }
+  // ── Card button factory — only called for NEW cards ──────────────────────
 
-  _renderHandInMarketMode() {
-    this.handEl.innerHTML = '';
-    for (const card of this._currentHand) {
-      const inPool = this._purchasePool.has(card.instanceId);
-      const btn = this._makeCardButton(card, inPool);
-      btn.addEventListener('click', () => {
-        if (this._purchasePool.has(card.instanceId)) {
-          this._purchasePool.delete(card.instanceId);
-          btn.classList.remove('in-pool');
-        } else {
-          this._purchasePool.set(card.instanceId, card);
-          btn.classList.add('in-pool');
-        }
-        this._updatePurchaseTotal();
-      });
-      this.handEl.appendChild(btn);
-    }
-  }
-
-  _makeCardButton(card, inPool = false) {
+  _makeCardButton(card) {
     const btn = document.createElement('button');
-    btn.className = 'card-btn' + (inPool ? ' in-pool' : '') + (card.movementTerrain ? ` terrain-${card.movementTerrain}` : '');
+    btn.className = 'card-btn' + (card.movementTerrain ? ` terrain-${card.movementTerrain}` : '');
     btn.dataset.instanceId = card.instanceId;
 
-    const movesLabel = card.movementTotal > 0 ? `▶ ${card.movementTotal}` : '&nbsp;';
-    const oneTimeLabel = card.oneTimeUse ? ` ❌` : '';
-    const powerLabel = card.purchasingPower
+    const movesLabel  = card.movementTotal > 0 ? `▶ ${card.movementTotal}` : '&nbsp;';
+    const oneTimeLabel = card.oneTimeUse ? ' ❌' : '';
+    const powerLabel  = card.purchasingPower
       ? `<span class="card-gold">💰 ${card.purchasingPower}</span>` : '';
 
-    btn.innerHTML = `<span class="card-name">${card.cardName || card.key}</span>
+    btn.innerHTML = `
+      <span class="card-name">${card.cardName || card.key}</span>
       <span class="card-moves">${movesLabel}${oneTimeLabel}</span>
       ${powerLabel}`;
     return btn;
   }
 
+  // ── Mode transitions ─────────────────────────────────────────────────────
+
+  _setMode(mode) {
+    this._mode = mode;
+    this._syncHandState();
+  }
+
+  // ── Market open / close ──────────────────────────────────────────────────
+
+  openMarket(transmitterBonus = 0) {
+    this._transmitterBonus = transmitterBonus;
+    this._purchasePool.clear();
+    this.marketEl.classList.remove('hidden');
+    this._setMode('market');
+    if (this._lastMarket) this.renderMarket(this._lastMarket);
+    this._updatePurchaseTotal();
+  }
+
+  closeMarket() {
+    this._transmitterBonus = 0;
+    this._purchasePool.clear();
+    this.marketEl.classList.add('hidden');
+    this._setMode('movement');
+  }
+
+  openMarketWithBonus(totalPurchasePower) {
+    this.openMarket(totalPurchasePower);
+  }
+
+  _syncRubbleConfirmButton() {
+    const btn = document.getElementById('rubble-confirm-btn');
+    if (!btn) return;
+    const ready = this._rubblePool.size >= this._rubbleNeeded;
+    btn.disabled      = !ready;
+    btn.style.opacity = ready ? '1' : '.4';
+    btn.style.cursor  = ready ? 'pointer' : 'not-allowed';
+    // Keep in-pool classes in sync with DOM
+    this._syncHandState();
+  }
+
+  // ── Selected-card highlight (movement mode) ──────────────────────────────
+
   updateSelectedCardForMovement(instanceId) {
     for (const btn of this.handEl.querySelectorAll('.card-btn')) {
-      if (btn.dataset.instanceId === instanceId) {
-        btn.classList.toggle('selected');
-      } else {
-        btn.classList.remove('selected');
-      }
+      btn.classList.toggle('selected', btn.dataset.instanceId === instanceId);
     }
   }
 
-  // ── Market rendering ───────────────────────────────────────────────────────
+  // ── Market rendering ─────────────────────────────────────────────────────
 
   renderMarket(market) {
     this._lastMarket = market;
@@ -127,7 +253,6 @@ class CardUI {
 
     const isTransmitter = this._transmitterBonus > 0;
 
-    // ── Shop section ──────────────────────────────────────────────────────
     const shopHeader = document.createElement('div');
     shopHeader.className = 'market-section-header';
     shopHeader.textContent = 'Shop';
@@ -137,12 +262,10 @@ class CardUI {
     shopRow.className = 'market-row';
     this.shopEl.appendChild(shopRow);
 
-    const slots = market?.shop ?? [];
-    for (const card of slots) {
+    for (const card of (market?.shop ?? [])) {
       shopRow.appendChild(this._makeMarketCardEl(card, false));
     }
 
-    // ── Reserve section — always visible so players know what's out there ──
     const reserveCards = (market?.reserve ?? []).filter(c => c && c.remaining > 0);
     if (reserveCards.length > 0) {
       const divider = document.createElement('div');
@@ -165,7 +288,7 @@ class CardUI {
       }
     }
 
-    if (this._marketMode) this._updateAffordability();
+    if (this._mode === 'market') this._updateAffordability();
   }
 
   _makeMarketCardEl(card, isReserve, transmitterActive = false) {
@@ -181,8 +304,8 @@ class CardUI {
     btn.className = `market-card${reserveClass}`;
     btn.dataset.cardKey = card.key;
 
-    const movesLabel = card.movementTotal > 0 ? `▶ ${card.movementTotal}` : '&nbsp;';
-    const oneTimeLabel = card.oneTimeUse ? ` ❌` : '';
+    const movesLabel  = card.movementTotal > 0 ? `▶ ${card.movementTotal}` : '&nbsp;';
+    const oneTimeLabel = card.oneTimeUse ? ' ❌' : '';
     const effectLabel = card.specialEffect && card.specialEffect !== 'none'
       ? `<span class="card-effect">★ ${card.specialEffect.replace(/_/g, ' ')}</span>` : '';
 
@@ -193,7 +316,6 @@ class CardUI {
       <span class="card-remaining">×${card.remaining}</span>
       ${effectLabel}`;
 
-    // Reserve cards are only clickable during Transmitter
     if (isReserve && !transmitterActive) {
       btn.classList.add('reserve-locked');
       btn.disabled = true;
@@ -217,7 +339,7 @@ class CardUI {
     this.onMarketCard?.({ cardKey: card.key, handCardsUsed });
   }
 
-  // ── Purchase power ─────────────────────────────────────────────────────────
+  // ── Purchase power ────────────────────────────────────────────────────────
 
   _currentPurchasePower() {
     let total = this._transmitterBonus;
@@ -260,58 +382,46 @@ class CardUI {
     document.getElementById('open-market-btn').disabled = !enabled;
   }
 
+  // ── Rubble payment mode ──────────────────────────────────────────────────
+
   enterRubblePaymentMode(count, excludeInstanceId, onConfirm, onCancel) {
-    this._rubbleMode = true;
-    this._rubbleNeeded = count;
-    this._rubblePool = new Map();
+    this._rubbleNeeded    = count;
     this._rubbleExcludeId = excludeInstanceId ?? null;
+    this._rubblePool      = new Map();
     this._rubbleOnConfirm = onConfirm;
-    this._rubbleOnCancel = onCancel;
-    this._renderHandForRubble();
+    this._rubbleOnCancel  = onCancel;
+
+    this._setMode('rubble');
+    this._renderRubbleControls();
   }
 
   exitRubblePaymentMode() {
-    this._rubbleMode = false;
-    this._rubblePool = new Map();
-    this.renderHand(this._currentHand);
+    this._rubblePool      = new Map();
+    this._rubbleNeeded    = 0;
+    this._rubbleExcludeId = null;
     document.getElementById('hand-messages').innerHTML = '';
+    this._setMode('movement');
   }
 
   getRubblePaymentCards() {
     return [...this._rubblePool.keys()];
   }
 
-  _renderHandForRubble() {
+  _renderRubbleControls() {
     const messages = document.getElementById('hand-messages');
     messages.innerHTML = `
       <div style="color:#ffaaaa;font-size:.8rem">☠ Rubble: select ${this._rubbleNeeded} card(s) to discard</div>
-      <button id="rubble-confirm-btn" disabled style="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:.3rem .8rem;cursor:not-allowed;opacity:.4;font-size:.8rem">Move Here</button>
-      <button id="rubble-cancel-btn" style="background:#555;color:#fff;border:none;border-radius:4px;padding:.3rem .8rem;cursor:pointer;font-size:.8rem">Cancel</button>`;
-
+      <button id="rubble-confirm-btn" disabled
+        style="background:#e74c3c;color:#fff;border:none;border-radius:4px;
+               padding:.3rem .8rem;cursor:not-allowed;opacity:.4;font-size:.8rem">
+        Move Here
+      </button>
+      <button id="rubble-cancel-btn"
+        style="background:#555;color:#fff;border:none;border-radius:4px;
+               padding:.3rem .8rem;cursor:pointer;font-size:.8rem">
+        Cancel
+      </button>`;
     document.getElementById('rubble-cancel-btn').onclick  = () => this._rubbleOnCancel?.();
     document.getElementById('rubble-confirm-btn').onclick = () => this._rubbleOnConfirm?.();
-
-    this.handEl.innerHTML = '';
-    for (const card of this._currentHand) {
-      if (card.instanceId === this._rubbleExcludeId) continue;
-      const btn = this._makeCardButton(card, false);
-      btn.addEventListener('click', () => {
-        if (this._rubblePool.has(card.instanceId)) {
-          this._rubblePool.delete(card.instanceId);
-          btn.classList.remove('in-pool');
-        } else if (this._rubblePool.size < this._rubbleNeeded) {
-          this._rubblePool.set(card.instanceId, card);
-          btn.classList.add('in-pool');
-        }
-        const confirmBtn = document.getElementById('rubble-confirm-btn');
-        if (confirmBtn) {
-          const ready = this._rubblePool.size >= this._rubbleNeeded;
-          confirmBtn.disabled = !ready;
-          confirmBtn.style.opacity = ready ? '1' : '.4';
-          confirmBtn.style.cursor  = ready ? 'pointer' : 'not-allowed';
-        }
-      });
-      this.handEl.appendChild(btn);
-    }
   }
 }
