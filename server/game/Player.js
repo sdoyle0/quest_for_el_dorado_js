@@ -49,7 +49,7 @@ class Player {
     const idx = this.hand.findIndex(c => c.instanceId === instanceId);
     if (idx === -1) return null;
     const [card] = this.hand.splice(idx, 1);
-    if (forceTrash || card.oneTimeUse) {
+    if (forceTrash) {
       this.removedCards.push(card); // gone permanently
     } else {
       this.discardPile.push(card);

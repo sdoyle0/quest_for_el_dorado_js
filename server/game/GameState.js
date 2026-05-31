@@ -80,7 +80,7 @@ class GameStateManager {
     this.state          = GS.AWAITING_MOVE;
 
     if (isDiscardingFromHand) {
-      this._disposeFinishedCard(player);
+      this._disposeFinishedCard(player, false);
       return { ok: true };
     }
 
@@ -211,7 +211,7 @@ class GameStateManager {
     // BUG FIX 3 (end-turn variant): if the player ends their turn while mid-move
     // (card played, some moves taken but not exhausted), discard the played card.
     if (this.state === GS.AWAITING_MOVE && this.playedCardData) {
-      player.playCard(this.playedCardData.instanceId);
+      player.playCard(this.playedCardData.instanceId, this.playedCardData.oneTimeUse);
       this.playedCardData  = null;
       this.movesRemaining  = 0;
       this.wildCardTerrain = null;
@@ -366,8 +366,8 @@ class GameStateManager {
     });
   }
 
-  _disposeFinishedCard(player) {
-    player.playCard(this.playedCardData.instanceId);
+  _disposeFinishedCard(player, functionWasUsed = true) {
+    player.playCard(this.playedCardData.instanceId, functionWasUsed && this.playedCardData.oneTimeUse);
     this.state           = GS.AWAITING_CARD;
     this.wildCardTerrain = null;
     this.playedCardData  = null;
@@ -380,7 +380,7 @@ class GameStateManager {
   // BUG FIX 3: Discard a partially-used card (player moved at least once but
   // didn't exhaust all moves, then tried to select a different card).
   _discardPartialCard(player) {
-    player.playCard(this.playedCardData.instanceId);
+    player.playCard(this.playedCardData.instanceId, this.playedCardData.oneTimeUse);
     this.state           = GS.AWAITING_CARD;
     this.wildCardTerrain = null;
     this.playedCardData  = null;
