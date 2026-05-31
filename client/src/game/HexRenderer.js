@@ -62,11 +62,11 @@ class HexRenderer {
     return { cx: W_STEP * q, cy: H_HALF * q + H_STEP * r };
   }
 
-  _hexPoints(cx, cy) {
+  _hexPoints(cx, cy, radius = HEX_R) {
     const pts = [];
     for (let i = 0; i < 6; i++) {
       const a = Math.PI / 180 * (60 * i);
-      pts.push(`${(cx + HEX_R * Math.cos(a)).toFixed(1)},${(cy + HEX_R * Math.sin(a)).toFixed(1)}`);
+      pts.push(`${(cx + radius * Math.cos(a)).toFixed(1)},${(cy + radius * Math.sin(a)).toFixed(1)}`);
     }
     return pts.join(' ');
   }
@@ -86,7 +86,30 @@ class HexRenderer {
     poly.setAttribute('stroke-width', '2');
     poly.style.transition = 'filter 0.1s';
     g.appendChild(poly);
-    
+
+    // Finishing tiles get a golden dashed inner border to indicate the finish line
+    if (tile.isFinishing) {
+      const inner = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      inner.setAttribute('points', this._hexPoints(cx, cy, HEX_R * 0.78));
+      inner.setAttribute('fill', 'none');
+      inner.setAttribute('stroke', '#ffd700');
+      inner.setAttribute('stroke-width', '3');
+      inner.setAttribute('stroke-dasharray', '8 4');
+      inner.setAttribute('pointer-events', 'none');
+      inner.style.opacity = '0.9';
+      g.appendChild(inner);
+
+      // Small flag in top-right corner
+      const flag = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      flag.setAttribute('x', cx + 20);
+      flag.setAttribute('y', cy - 20);
+      flag.setAttribute('text-anchor', 'middle');
+      flag.setAttribute('font-size', '12');
+      flag.setAttribute('pointer-events', 'none');
+      flag.textContent = '🏁';
+      g.appendChild(flag);
+    }
+
 
     const icon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     icon.setAttribute('x', cx);
@@ -114,7 +137,7 @@ class HexRenderer {
       badge.textContent = `×${tile.movementCost}`;
       g.appendChild(badge);
     }
-    
+
     g.addEventListener('click', () => this.onTileClick?.(tile.id));
 
     this.svg.appendChild(g);
