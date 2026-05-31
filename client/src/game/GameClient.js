@@ -4,12 +4,15 @@
 class GameClient {
   constructor(socket) {
     this.socket = socket;
-    this.playerId = null;
+    this.playerId     = null;
     this.playerNumber = null;
-    this.roomId = null;
+    this.roomId       = null;
+    this.isHost       = false;
 
     // Callbacks — set by main.js
     this.onJoined            = null;
+    this.onJoinError         = null;
+    this.onRoomUpdated       = null; // players list changed in waiting room
     this.onGameStarted       = null;
     this.onPawnMoved         = null;
     this.onHandUpdated       = null;
@@ -22,9 +25,11 @@ class GameClient {
     this.onGameWon           = null;
     this.onFinalRoundStarted = null;
     this.onPlayerJoined      = null;
+    this.onPlayerLeft        = null;
     this.onLog               = null;
     this.onCardDisposed      = null;
     this.onActionError       = null;
+    this.onPromptReserveChoice = null;
 
     this._bindEvents();
   }
@@ -36,10 +41,24 @@ class GameClient {
       this.playerId     = data.playerId;
       this.playerNumber = data.playerNumber;
       this.roomId       = data.roomId;
+      this.isHost       = data.isHost ?? false;
       this.onJoined?.(data);
     });
 
-    s.on('player_joined',       d => this.onPlayerJoined?.(d));
+    s.on('join_error',   d => this.onJoinError?.(d));
+
+    // player_joined now carries the full players list + hostId so the
+    // waiting room can re-render without needing extra fetches
+    s.on('player_joined', d => {
+      this.onPlayerJoined?.(d);
+      this.onRoomUpdated?.(d);
+    });
+
+    s.on('player_left', d => {
+      this.onPlayerLeft?.(d);
+      this.onRoomUpdated?.(d);
+    });
+
     s.on('game_started',        d => this.onGameStarted?.(d));
     s.on('pawn_moved',          d => this.onPawnMoved?.(d));
     s.on('hand_updated',        d => this.onHandUpdated?.(d));
@@ -56,62 +75,42 @@ class GameClient {
     s.on('action_error',        d => this.onActionError?.(d));
     s.on('prompt_reserve_choice', d => this.onPromptReserveChoice?.(d));
 
-    s.on('error', ({ message }) => {
-      console.warn('[server error]', message);
-    });
+    s.on('error', ({ message }) => console.warn('[server error]', message));
   }
 
-  // --- Actions ---
+  // ── Lobby actions ──────────────────────────────────────────────────────────
 
+  createRoom(playerName, playerCount = 2, debugMode = false) {
+    this.socket.emit('create_room', { playerName, playerCount, debugMode });
+  }
+
+  joinRoom(playerName, roomId) {
+    this.socket.emit('join_room', { playerName, roomId: roomId.toUpperCase() });
+  }
+
+  startGame() {
+    this.socket.emit('start_game');
+  }
+
+  // Legacy — kept for ?debug shortcut
   joinGame(playerName, debugMode = false) {
     this.socket.emit('join_game', { playerName, debugMode });
   }
 
-  playCard(instanceId) {
-    this.socket.emit('play_card', { instanceId });
-  }
+  // ── Game actions ──────────────────────────────────────────────────────────
 
-  cancelCard(instanceId) {
-    this.socket.emit('cancel_card', { instanceId });
-  }
+  playCard(instanceId)           { this.socket.emit('play_card',    { instanceId }); }
+  cancelCard()                   { this.socket.emit('cancel_card'); }
+  movePawn(tileId)               { this.socket.emit('move_pawn',    { tileId }); }
+  moveToRubble(tileId, extraCardIds) { this.socket.emit('move_to_rubble', { tileId, extraCardIds }); }
+  endTurn()                      { this.socket.emit('end_turn'); }
+  purchaseCard(cardKey, handCardsUsed = []) { this.socket.emit('purchase_card', { cardKey, handCardsUsed }); }
+  discardCard(cardKey)           { this.socket.emit('discard_card', { cardKey }); }
+  chooseReserveCard(soldOutKey, chosenKey) { this.socket.emit('choose_reserve_card', { soldOutKey, chosenKey }); }
 
-  movePawn(tileId) {
-    this.socket.emit('move_pawn', { tileId });
-  }
+  debugState()              { this.socket.emit('debug_state'); }
+  debugSetHand(cardKeys)    { this.socket.emit('debug_set_hand', { cardKeys }); }
+  debugTeleport(tileId)     { this.socket.emit('debug_teleport', { tileId }); }
 
-  moveToRubble(tileId, extraCardIds) {
-    this.socket.emit('move_to_rubble', { tileId, extraCardIds });
-  }
-
-  endTurn() {
-    this.socket.emit('end_turn');
-  }
-
-  purchaseCard(cardKey, handCardsUsed = []) {
-    this.socket.emit('purchase_card', { cardKey, handCardsUsed });
-  }
-
-  discardCard(cardKey) {
-    this.socket.emit('discard_card', { cardKey });
-  }
-
-  chooseReserveCard(soldOutKey, chosenKey) {
-    this.socket.emit('choose_reserve_card', { soldOutKey, chosenKey });
-  }
-
-  debugState() {
-    this.socket.emit('debug_state');
-  }
-
-  debugSetHand(cardKeys) {
-    this.socket.emit('debug_set_hand', { cardKeys });
-  }
-
-  debugTeleport(tileId) {
-    this.socket.emit('debug_teleport', { tileId });
-  }
-
-  isMyTurn(currentPlayerId) {
-    return this.playerId === currentPlayerId;
-  }
+  isMyTurn(currentPlayerId) { return this.playerId === currentPlayerId; }
 }

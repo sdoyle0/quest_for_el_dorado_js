@@ -1,11 +1,43 @@
 document.addEventListener('DOMContentLoaded', () => {
   const DEBUG = new URLSearchParams(window.location.search).has('debug');
 
-  const lobbyScreen = document.getElementById('lobby-screen');
-  const gameScreen  = document.getElementById('game-screen');
-  const joinBtn     = document.getElementById('join-btn');
-  const nameInput   = document.getElementById('player-name-input');
-  const lobbyStatus = document.getElementById('lobby-status');
+  // ── Screen refs ────────────────────────────────────────────────────────────
+  const lobbyScreen   = document.getElementById('lobby-screen');
+  const waitingScreen = document.getElementById('waiting-screen');
+  const gameScreen    = document.getElementById('game-screen');
+
+  function showScreen(name) {
+    lobbyScreen.classList.toggle('active',   name === 'lobby');
+    waitingScreen.classList.toggle('active', name === 'waiting');
+    gameScreen.classList.toggle('active',    name === 'game');
+  }
+
+  // ── Lobby UI refs ──────────────────────────────────────────────────────────
+  const nameInput      = document.getElementById('player-name-input');
+  const lobbyStatus    = document.getElementById('lobby-status');
+  const createRoomBtn  = document.getElementById('create-room-btn');
+  const joinRoomBtn    = document.getElementById('join-room-btn');
+  const roomCodeInput  = document.getElementById('room-code-input');
+  const countBtns      = document.querySelectorAll('.count-btn');
+
+  let selectedPlayerCount = 2;
+  countBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      countBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedPlayerCount = Number(btn.dataset.count);
+    });
+  });
+
+  // ── Waiting-room UI refs ───────────────────────────────────────────────────
+  const roomCodeValue  = document.getElementById('room-code-value');
+  const copyCodeBtn    = document.getElementById('copy-code-btn');
+  const waitingSubtitle= document.getElementById('waiting-subtitle');
+  const waitingPlayers = document.getElementById('waiting-players');
+  const startGameBtn   = document.getElementById('start-game-btn');
+  const waitingHint    = document.getElementById('waiting-hint');
+
+  // ── Game UI refs ───────────────────────────────────────────────────────────
   const playerLabel = document.getElementById('current-player-label');
   const logEl       = document.getElementById('game-log');
   const boardEl     = document.getElementById('hex-board');
@@ -14,117 +46,175 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let boardZoom = 1;
   const BOARD_ZOOM_STEP = 0.25;
-  const BOARD_ZOOM_MIN = 0.5;
-  const BOARD_ZOOM_MAX = 2.5;
+  const BOARD_ZOOM_MIN  = 0.5;
+  const BOARD_ZOOM_MAX  = 2.5;
+  function updateBoardZoom() { boardEl.style.transform = `scale(${boardZoom})`; }
 
-  function updateBoardZoom() {
-    boardEl.style.transform = `scale(${boardZoom})`;
-  }
-
-  function showScreen(name) {
-    lobbyScreen.classList.toggle('active', name === 'lobby');
-    gameScreen.classList.toggle('active',  name === 'game');
-  }
-
-  const socket   = io();
-  const client   = new GameClient(socket);
-  const renderer = new HexRenderer(document.getElementById('hex-board'));
-  const cardUI   = new CardUI();
+  // ── Game + client setup ────────────────────────────────────────────────────
+  const socket      = io();
+  const client      = new GameClient(socket);
+  const renderer    = new HexRenderer(document.getElementById('hex-board'));
+  const cardUI      = new CardUI();
   const clientBoard = new ElDoradoHexBoard.HexBoard();
 
   const PAWN_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12'];
-  let allPlayers = [];
-  let localHand = [];
-  let selectedCard = null;
+  let allPlayers         = [];
+  let localHand          = [];
+  let selectedCard       = null;
   let selectedValidMoves = [];
-  let isMidMove = false;
+  let isMidMove          = false;
   let rubblePendingTileId = null;
   let rubbleCardsNeeded   = 0;
 
-  // ── Debug mode: auto-join immediately on page load ─────────────────────────
-  if (DEBUG) {
-    document.title += ' [DEBUG]';
-    // Small delay so socket is ready
-    setTimeout(() => client.joinGame('Debug Player', true), 100);
+  // Waiting-room state (updated on player_joined / player_left)
+  let waitingRoomState = { players: [], maxPlayers: 2, hostId: null };
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function getPlayerName() {
+    return nameInput.value.trim() || 'Explorer';
   }
 
-  // ── Lobby ──────────────────────────────────────────────────────────────────
-  joinBtn.addEventListener('click', () => {
-    const name = nameInput.value.trim() || 'Explorer';
-    lobbyStatus.textContent = 'Looking for a game...';
-    client.joinGame(name);
+  function setLobbyError(msg) {
+    lobbyStatus.textContent  = msg;
+    lobbyStatus.style.color  = '#e74c3c';
+  }
+  function setLobbyInfo(msg) {
+    lobbyStatus.textContent  = msg;
+    lobbyStatus.style.color  = '#aaa';
+  }
+
+  // ── Waiting-room rendering ─────────────────────────────────────────────────
+  function renderWaitingRoom() {
+    const { players, maxPlayers, hostId } = waitingRoomState;
+    roomCodeValue.textContent = client.roomId || '';
+    waitingSubtitle.textContent = `${players.length} / ${maxPlayers} players joined`;
+
+    waitingPlayers.innerHTML = '';
+    for (let i = 0; i < maxPlayers; i++) {
+      const p   = players[i];
+      const row = document.createElement('div');
+      row.className = 'waiting-player-row';
+
+      const dot = document.createElement('span');
+      dot.className = 'waiting-player-dot';
+      dot.style.background = p ? PAWN_COLORS[i] : '#444';
+
+      const name = document.createElement('span');
+      name.className = 'waiting-player-name';
+      name.textContent = p
+        ? p.name + (p.id === hostId ? ' 👑' : '')
+        : `Waiting for player ${i + 1}…`;
+      name.style.color = p ? '#e0e0e0' : '#666';
+
+      row.appendChild(dot);
+      row.appendChild(name);
+      waitingPlayers.appendChild(row);
+    }
+
+    const isHost     = client.isHost;
+    const canStart   = isHost && players.length >= 2;
+    startGameBtn.disabled   = !canStart;
+    startGameBtn.style.opacity = canStart ? '1' : '0.4';
+    startGameBtn.style.cursor  = canStart ? 'pointer' : 'not-allowed';
+
+    if (!isHost) {
+      waitingHint.textContent = 'Waiting for the host to start…';
+    } else if (players.length < 2) {
+      waitingHint.textContent = 'Need at least 2 players to start.';
+    } else if (players.length < maxPlayers) {
+      waitingHint.textContent = `You can start now, or wait for ${maxPlayers - players.length} more.`;
+    } else {
+      waitingHint.textContent = 'All players connected — ready to start!';
+    }
+  }
+
+  // ── Lobby events ───────────────────────────────────────────────────────────
+  createRoomBtn.addEventListener('click', () => {
+    const name = getPlayerName();
+    if (!name) { setLobbyError('Enter your name first.'); return; }
+    setLobbyInfo('Creating room…');
+    createRoomBtn.disabled = true;
+    client.createRoom(name, selectedPlayerCount);
+  });
+
+  joinRoomBtn.addEventListener('click', () => {
+    const name = getPlayerName();
+    const code = roomCodeInput.value.trim().toUpperCase();
+    if (!name) { setLobbyError('Enter your name first.'); return; }
+    if (!code) { setLobbyError('Enter a room code.'); return; }
+    setLobbyInfo('Joining…');
+    joinRoomBtn.disabled = true;
+    client.joinRoom(name, code);
+  });
+
+  // Allow Enter key in room code field
+  roomCodeInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') joinRoomBtn.click();
+  });
+
+  copyCodeBtn.addEventListener('click', () => {
+    const code = roomCodeValue.textContent;
+    navigator.clipboard?.writeText(code).then(() => {
+      copyCodeBtn.textContent = '✅';
+      setTimeout(() => { copyCodeBtn.textContent = '📋'; }, 1500);
+    });
+  });
+
+  startGameBtn.addEventListener('click', () => {
+    if (!startGameBtn.disabled) client.startGame();
   });
 
   zoomInBtn?.addEventListener('click', () => {
     boardZoom = Math.min(BOARD_ZOOM_MAX, boardZoom + BOARD_ZOOM_STEP);
     updateBoardZoom();
   });
-
   zoomOutBtn?.addEventListener('click', () => {
     boardZoom = Math.max(BOARD_ZOOM_MIN, boardZoom - BOARD_ZOOM_STEP);
     updateBoardZoom();
   });
 
+  // ── Debug mode: auto-join immediately ─────────────────────────────────────
   if (DEBUG) {
-    const panel = document.createElement('div');
-    panel.id = 'debug-panel';
-    panel.innerHTML = `
-    <div class="debug-row">
-      <input id="debug-hand-input" placeholder="explorer,scout,transmitter" />
-      <button id="debug-set-hand-btn">Set Hand</button>
-    </div>
-    <div class="debug-row">
-      <input id="debug-tile-input" placeholder="tile id e.g. 5_-11" />
-      <button id="debug-teleport-btn">Teleport</button>
-    </div>
-    <div class="debug-row">
-      <span class="debug-presets-label">Presets:</span>
-      <button class="debug-preset" data-hand="transmitter,scout,scout,explorer">Transmitter</button>
-      <button class="debug-preset" data-hand="pioneer,giant_machete,adventurer,prop_plane">Speed run</button>
-      <button class="debug-preset" data-hand="scientist,travel_log,cartographer,compass">Purple hand</button>
-    </div>
-    <div>
-      <button id="debug-btn">Debug State</button>
-    </div>
-  `;
-    document.getElementById('game-screen').appendChild(panel);
-
-    document.getElementById('debug-set-hand-btn').addEventListener('click', () => {
-      const val = document.getElementById('debug-hand-input').value.trim();
-      if (!val) return;
-      client.debugSetHand(val.split(',').map(s => s.trim()).filter(Boolean));
-    });
-
-    document.getElementById('debug-teleport-btn').addEventListener('click', () => {
-      const tileId = document.getElementById('debug-tile-input').value.trim();
-      if (tileId) client.debugTeleport(tileId);
-    });
-
-    panel.querySelectorAll('.debug-preset').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const keys = btn.dataset.hand.split(',');
-        client.debugSetHand(keys);
-        document.getElementById('debug-hand-input').value = btn.dataset.hand;
-      });
-    });
-
-    document.getElementById('debug-btn').addEventListener('click', () => {
-      client.debugState();
-    });
-
-    // Shift+click any tile to teleport instead of move
-    const _originalTileClick = renderer.onTileClick;
-    renderer.onTileClick = (tileId, event) => {
-      if (event?.shiftKey) { client.debugTeleport(tileId); return; }
-      _originalTileClick?.(tileId);
-    };
+    document.title += ' [DEBUG]';
+    setTimeout(() => client.joinGame('Debug Player', true), 100);
   }
 
-  client.onJoined = ({ roomId }) => {
-    lobbyStatus.textContent = `Joined room ${roomId}. Waiting for opponent…`;
+  // ── Client callbacks ───────────────────────────────────────────────────────
+
+  client.onJoined = (data) => {
+    createRoomBtn.disabled = false;
+    joinRoomBtn.disabled   = false;
+    setLobbyInfo('');
+
+    waitingRoomState = {
+      players:    data.players || [],
+      maxPlayers: data.maxPlayers,
+      hostId:     data.hostId,
+    };
+    showScreen('waiting');
+    renderWaitingRoom();
+  };
+
+  client.onJoinError = ({ message }) => {
+    createRoomBtn.disabled = false;
+    joinRoomBtn.disabled   = false;
+    setLobbyError(message || 'Could not join room.');
+  };
+
+  // Waiting room: someone joined or left
+  client.onRoomUpdated = (data) => {
+    if (data.players)    waitingRoomState.players    = data.players;
+    if (data.maxPlayers) waitingRoomState.maxPlayers  = data.maxPlayers;
+    if (data.hostId)     waitingRoomState.hostId      = data.hostId;
+    // Only re-render if we're still in the waiting screen
+    if (waitingScreen.classList.contains('active')) renderWaitingRoom();
   };
 
   client.onPlayerJoined = ({ player }) => log(`${player.name} joined.`);
+  client.onPlayerLeft   = ({ socketId }) => {
+    const p = allPlayers.find(p => p.id === socketId);
+    if (p) log(`${p.name} left.`);
+  };
 
   // ── Game start ─────────────────────────────────────────────────────────────
   client.onGameStarted = ({ tiles, players, currentPlayerId, market }) => {
@@ -147,6 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
     log('Game started!');
   };
 
+  // ── Board ──────────────────────────────────────────────────────────────────
   function exitRubblePaymentMode() {
     rubblePendingTileId = null;
     rubbleCardsNeeded = 0;
@@ -183,11 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (isMidMove) {
-      client.movePawn(tileId);
-      return;
-    }
-    if (selectedCard) {
+    if (isMidMove || selectedCard) {
       client.movePawn(tileId);
       return;
     }
@@ -277,6 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showReservePicker(soldOutKey, reserveCards);
   };
 
+  // ── Reserve picker ─────────────────────────────────────────────────────────
   function showReservePicker(soldOutKey, reserveCards) {
     const overlay    = document.getElementById('reserve-picker');
     const container  = document.getElementById('reserve-cards');
@@ -387,5 +475,63 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.classList.remove('hidden');
     document.getElementById('modal-confirm-btn').onclick = () => overlay.classList.add('hidden');
     document.getElementById('modal-cancel-btn').onclick  = () => overlay.classList.add('hidden');
+  }
+
+  // ── Debug mode ─────────────────────────────────────────────────────────────
+  if (DEBUG) {
+    // Wait until we're in game screen before appending the panel
+    const _origOnGameStarted = client.onGameStarted;
+    client.onGameStarted = (data) => {
+      _origOnGameStarted(data);
+      appendDebugPanel();
+    };
+  }
+
+  function appendDebugPanel() {
+    if (document.getElementById('debug-panel')) return; // already added
+    const panel = document.createElement('div');
+    panel.id = 'debug-panel';
+    panel.innerHTML = `
+      <div class="debug-row">
+        <input id="debug-hand-input" placeholder="explorer,scout,transmitter" />
+        <button id="debug-set-hand-btn">Set Hand</button>
+      </div>
+      <div class="debug-row">
+        <input id="debug-tile-input" placeholder="tile id e.g. 5_-11" />
+        <button id="debug-teleport-btn">Teleport</button>
+      </div>
+      <div class="debug-row">
+        <span class="debug-presets-label">Presets:</span>
+        <button class="debug-preset" data-hand="transmitter,scout,scout,explorer">Transmitter</button>
+        <button class="debug-preset" data-hand="pioneer,giant_machete,adventurer,prop_plane">Speed run</button>
+        <button class="debug-preset" data-hand="scientist,travel_log,cartographer,compass">Purple hand</button>
+      </div>
+      <div>
+        <button id="debug-btn">Debug State</button>
+      </div>`;
+    document.getElementById('game-screen').appendChild(panel);
+
+    document.getElementById('debug-set-hand-btn').addEventListener('click', () => {
+      const val = document.getElementById('debug-hand-input').value.trim();
+      if (val) client.debugSetHand(val.split(',').map(s => s.trim()).filter(Boolean));
+    });
+    document.getElementById('debug-teleport-btn').addEventListener('click', () => {
+      const tileId = document.getElementById('debug-tile-input').value.trim();
+      if (tileId) client.debugTeleport(tileId);
+    });
+    panel.querySelectorAll('.debug-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const keys = btn.dataset.hand.split(',');
+        client.debugSetHand(keys);
+        document.getElementById('debug-hand-input').value = btn.dataset.hand;
+      });
+    });
+    document.getElementById('debug-btn').addEventListener('click', () => client.debugState());
+
+    const _origTileClick = renderer.onTileClick;
+    renderer.onTileClick = (tileId, event) => {
+      if (event?.shiftKey) { client.debugTeleport(tileId); return; }
+      _origTileClick?.(tileId);
+    };
   }
 });

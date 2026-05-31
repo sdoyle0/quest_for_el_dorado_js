@@ -39,15 +39,76 @@ const gameManager = new GameManager(io);
 io.on('connection', (socket) => {
   console.log(`[connect] ${socket.id}`);
 
-  // --- Lobby ---
+  // ── Lobby: create a new room ───────────────────────────────────────────────
+  // playerCount: 2 | 3 | 4
+  socket.on('create_room', ({ playerName, playerCount = 2, debugMode = false }) => {
+    const count = Math.min(4, Math.max(2, Number(playerCount) || 2));
+    const { room, player } = gameManager.createRoom(socket, playerName, {
+      debugMode,
+      maxPlayers: debugMode ? 1 : count,
+    });
+    socket.emit('joined_room', {
+      roomId:       room.roomId,
+      playerId:     player.id,
+      playerNumber: player.playerNumber,
+      isHost:       true,
+      maxPlayers:   room.maxPlayers,
+      debugMode,
+      players:      room.players.map(p => p.toPublicData()),
+      hostId:       room.hostId,
+    });
+  });
+
+  // ── Lobby: join an existing room by code ──────────────────────────────────
+  socket.on('join_room', ({ playerName, roomId }) => {
+    const result = gameManager.joinRoom(socket, playerName, roomId);
+    if (!result.ok) {
+      socket.emit('join_error', { message: result.error });
+      return;
+    }
+    const { room, player } = result;
+    socket.emit('joined_room', {
+      roomId:       room.roomId,
+      playerId:     player.id,
+      playerNumber: player.playerNumber,
+      isHost:       false,
+      maxPlayers:   room.maxPlayers,
+      debugMode:    room.debugMode,
+      players:      room.players.map(p => p.toPublicData()),
+      hostId:       room.hostId,
+    });
+  });
+
+  // ── Lobby: host starts the game ───────────────────────────────────────────
+  socket.on('start_game', () => {
+    const room = gameManager.getRoomForSocket(socket.id);
+    if (!room) { socket.emit('action_error', { message: 'not in a room' }); return; }
+    const result = room.tryStartGame(socket.id);
+    if (!result.ok) socket.emit('action_error', { message: result.error });
+  });
+
+  // ── Lobby: query room info (for showing waiting-room state on rejoin) ─────
+  socket.on('get_room_info', ({ roomId }) => {
+    const room = gameManager.rooms.get((roomId || '').toUpperCase());
+    if (!room) { socket.emit('room_info', null); return; }
+    socket.emit('room_info', room.getRoomInfo());
+  });
+
+  // ── Legacy join (kept for ?debug mode) ────────────────────────────────────
   socket.on('join_game', ({ playerName, debugMode = false }) => {
     const { room, player } = gameManager.joinOrCreateRoom(socket, playerName, { debugMode });
     socket.emit('joined_room', {
-      roomId: room.roomId,
-      playerId: player.id,
+      roomId:       room.roomId,
+      playerId:     player.id,
       playerNumber: player.playerNumber,
+      isHost:       room.hostId === socket.id,
+      maxPlayers:   room.maxPlayers,
       debugMode,
+      players:      room.players.map(p => p.toPublicData()),
+      hostId:       room.hostId,
     });
+    // Debug: single-player rooms start immediately
+    if (debugMode) setImmediate(() => room.tryStartGame(socket.id));
   });
 
   // --- Game actions ---

@@ -7,13 +7,14 @@ const { Player } = require('./Player');
 const MAP_DATA = require('../../shared/mapData.json');
 
 class GameRoom {
-  constructor(roomId, io, { debugMode = false } = {}) {
+  constructor(roomId, io, { debugMode = false, maxPlayers = 2 } = {}) {
     this.roomId     = roomId;
     this.io         = io;
     this.players    = [];
-    this.maxPlayers = debugMode ? 1 : 2;
+    this.maxPlayers = Math.min(4, Math.max(2, maxPlayers));
     this.debugMode  = debugMode;
     this.started    = false;
+    this.hostId     = null; // socketId of the room creator
 
     this.board     = new HexBoard();
     this.market    = new CardMarket();
@@ -43,6 +44,7 @@ class GameRoom {
 
   addPlayer(socket, playerName) {
     if (this.players.length >= this.maxPlayers) return null;
+    if (this.started) return null;
 
     const player = new Player({
       id: socket.id,
@@ -52,16 +54,52 @@ class GameRoom {
     });
 
     this.players.push(player);
+    if (!this.hostId) this.hostId = socket.id;
     socket.join(this.roomId);
-    this._broadcast('player_joined', { player: player.toPublicData(), roomId: this.roomId });
 
-    if (this.players.length === this.maxPlayers) setImmediate(() => this._startGame());
+    // Tell everyone in the room about the new arrival
+    this._broadcast('player_joined', {
+      player: player.toPublicData(),
+      roomId: this.roomId,
+      players: this.players.map(p => p.toPublicData()),
+      hostId: this.hostId,
+      maxPlayers: this.maxPlayers,
+    });
+
     return player;
   }
 
   removePlayer(socketId) {
     this.players = this.players.filter(p => p.socketId !== socketId);
-    this._broadcast('player_left', { socketId });
+    // Re-assign host if the host left
+    if (this.hostId === socketId && this.players.length > 0) {
+      this.hostId = this.players[0].socketId;
+    }
+    this._broadcast('player_left', {
+      socketId,
+      players: this.players.map(p => p.toPublicData()),
+      hostId: this.hostId,
+    });
+  }
+
+  // Called by the host via the 'start_game' socket event.
+  // Requires at least 2 players.
+  tryStartGame(socketId) {
+    if (socketId !== this.hostId) return { ok: false, error: 'only the host can start the game' };
+    if (this.started)             return { ok: false, error: 'game already started' };
+    if (this.players.length < 2)  return { ok: false, error: 'need at least 2 players' };
+    this._startGame();
+    return { ok: true };
+  }
+
+  getRoomInfo() {
+    return {
+      roomId:     this.roomId,
+      maxPlayers: this.maxPlayers,
+      started:    this.started,
+      hostId:     this.hostId,
+      players:    this.players.map(p => p.toPublicData()),
+    };
   }
 
   _startGame() {
@@ -139,20 +177,37 @@ class GameManager {
     this.playerRooms = new Map(); // socketId → roomId
   }
 
-  createRoom(opts = {}) {
+  createRoom(socket, playerName, { debugMode = false, maxPlayers = 2 } = {}) {
     const roomId = uuidv4().slice(0, 6).toUpperCase();
-    const room = new GameRoom(roomId, this.io, opts);
+    const room   = new GameRoom(roomId, this.io, { debugMode, maxPlayers });
     this.rooms.set(roomId, room);
-    return room;
+    const player = room.addPlayer(socket, playerName);
+    if (player) this.playerRooms.set(socket.id, roomId);
+    return { room, player };
   }
 
+  joinRoom(socket, playerName, roomId) {
+    const room = this.rooms.get(roomId.toUpperCase());
+    if (!room)           return { ok: false, error: 'Room not found' };
+    if (room.started)    return { ok: false, error: 'Game already in progress' };
+    if (room.players.length >= room.maxPlayers) return { ok: false, error: 'Room is full' };
+
+    const player = room.addPlayer(socket, playerName);
+    if (!player) return { ok: false, error: 'Could not join room' };
+    this.playerRooms.set(socket.id, room.roomId);
+    return { ok: true, room, player };
+  }
+
+  // Legacy: auto-join or create — kept for debug mode
   joinOrCreateRoom(socket, playerName, { debugMode = false } = {}) {
-    let room;
     if (debugMode) {
-      room = this.createRoom({ debugMode: true });
-    } else {
-      room = [...this.rooms.values()].find(r => !r.started && r.players.length < r.maxPlayers);
-      if (!room) room = this.createRoom();
+      return this.createRoom(socket, playerName, { debugMode: true, maxPlayers: 1 });
+    }
+    // Fall back to old behaviour (find any open 2-player room)
+    let room = [...this.rooms.values()].find(r => !r.started && r.players.length < r.maxPlayers && !r.debugMode);
+    if (!room) {
+      const result = this.createRoom(socket, playerName);
+      return { room: result.room, player: result.player };
     }
     const player = room.addPlayer(socket, playerName);
     if (player) this.playerRooms.set(socket.id, room.roomId);
