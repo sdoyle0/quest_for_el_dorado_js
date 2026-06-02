@@ -116,6 +116,10 @@ class GameStateManager {
     if (tile.isFinishing) {
       if (!this.firstWinnerId) this.firstWinnerId = playerId;
 
+      // Move the finisher off the board and onto a free el_dorado podium tile
+      // so the finishing space stays open for subsequent players.
+      this._relocateFinisher(player);
+
       const isLastPlayerOfRound = this.currentPlayerIndex === this.players.length - 1;
 
       if (!this.finalRoundTriggered) {
@@ -418,6 +422,21 @@ class GameStateManager {
 
   _isCurrentPlayer(playerId) {
     return this.currentPlayer && this.currentPlayer.id === playerId;
+  }
+
+  // Teleport a finisher to the first unoccupied el_dorado tile so the
+  // finishing space stays open for players still completing their turns.
+  _relocateFinisher(player) {
+    const elDoradoTiles = [...this.board.tiles.values()]
+      .filter(t => t.terrainType === TerrainType.EL_DORADO);
+
+    const occupiedIds = new Set(this.players.map(p => p.currentTileId));
+
+    const podium = elDoradoTiles.find(t => !occupiedIds.has(t.id));
+    if (!podium) return; // all podium tiles full (shouldn't happen with 3 tiles / ≤4 players)
+
+    player.currentTileId = podium.id;
+    this.emit('pawn_moved', { playerId: player.id, tileId: podium.id });
   }
 }
 
