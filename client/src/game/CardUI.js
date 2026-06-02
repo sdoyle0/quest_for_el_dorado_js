@@ -36,6 +36,7 @@ class CardUI {
     this._rubbleNeeded    = 0;
     this._rubblePool      = new Map(); // instanceId → card
     this._rubbleExcludeId = null;
+    this._rubbleExcludeName  = null; // display name of the committed movement card
     this._rubbleOnConfirm = null;
     this._rubbleOnCancel  = null;
 
@@ -340,6 +341,13 @@ class CardUI {
     btn.style.cursor  = ready ? 'pointer' : 'not-allowed';
     // Keep in-pool classes in sync with DOM
     this._syncHandState();
+
+    // Update the "X of N selected" counter in the prompt
+    const counter = document.getElementById('rubble-selection-count');
+    if (counter) {
+      counter.textContent = `${this._rubblePool.size} of ${this._rubbleNeeded} selected`;
+      counter.style.color = ready ? '#4cff4c' : '#ffaaaa';
+    }
   }
 
   // ── Selected-card highlight (movement mode) ──────────────────────────────
@@ -529,6 +537,13 @@ class CardUI {
     this._rubbleOnConfirm = onConfirm;
     this._rubbleOnCancel  = onCancel;
 
+    // Look up the display name of the committed movement card so the prompt
+    // can reference it by name rather than leaving the player guessing.
+    const excludedCard = excludeInstanceId
+      ? this._currentHand.find(c => c.instanceId === excludeInstanceId)
+      : null;
+    this._rubbleExcludeName = excludedCard?.cardName ?? excludedCard?.key ?? null;
+
     this._setMode('rubble');
     this._renderRubbleControls();
   }
@@ -537,6 +552,7 @@ class CardUI {
     this._rubblePool      = new Map();
     this._rubbleNeeded    = 0;
     this._rubbleExcludeId = null;
+    this._rubbleExcludeName = null;
     document.getElementById('hand-messages').innerHTML = '';
     this._setMode('movement');
   }
@@ -547,18 +563,32 @@ class CardUI {
 
   _renderRubbleControls() {
     const messages = document.getElementById('hand-messages');
+
+    // Build a human-readable "X more card(s)" string
+    const cardWord = this._rubbleNeeded === 1 ? 'card' : 'cards';
+    const nameNote = this._rubbleExcludeName
+      ? `<span class="rubble-committed-note">🔒 ${this._rubbleExcludeName} is already paying — pick ${this._rubbleNeeded} more ${cardWord} for the toll.</span>`
+      : `<span class="rubble-committed-note">Pick ${this._rubbleNeeded} ${cardWord} to pay the rubble toll.</span>`;
+
     messages.innerHTML = `
-      <div style="color:#ffaaaa;font-size:.8rem">☠ Rubble: select ${this._rubbleNeeded} card(s) to discard</div>
-      <button id="rubble-confirm-btn" disabled
-        style="background:#e74c3c;color:#fff;border:none;border-radius:4px;
-               padding:.3rem .8rem;cursor:not-allowed;opacity:.4;font-size:.8rem">
-        Move Here
-      </button>
-      <button id="rubble-cancel-btn"
-        style="background:#555;color:#fff;border:none;border-radius:4px;
-               padding:.3rem .8rem;cursor:pointer;font-size:.8rem">
-        Cancel
-      </button>`;
+      <div class="rubble-prompt">
+        <div class="rubble-prompt-header">🪨 Rubble toll</div>
+        ${nameNote}
+        <span id="rubble-selection-count" class="rubble-selection-count">0 of ${this._rubbleNeeded} selected</span>
+      </div>
+      <div class="rubble-prompt-actions">
+        <button id="rubble-confirm-btn" disabled
+          style="background:#e74c3c;color:#fff;border:none;border-radius:4px;
+                 padding:.3rem .8rem;cursor:not-allowed;opacity:.4;font-size:.8rem">
+          Cross Rubble
+        </button>
+        <button id="rubble-cancel-btn"
+          style="background:#555;color:#fff;border:none;border-radius:4px;
+                 padding:.3rem .8rem;cursor:pointer;font-size:.8rem">
+          Cancel
+        </button>
+      </div>`;
+
     document.getElementById('rubble-cancel-btn').onclick  = () => this._rubbleOnCancel?.();
     document.getElementById('rubble-confirm-btn').onclick = () => this._rubbleOnConfirm?.();
   }

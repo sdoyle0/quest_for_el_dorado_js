@@ -914,3 +914,63 @@ body {
 #rubble-confirm-btn { background: #e74c3c; color: #fff; }
 #rubble-confirm-btn:disabled { opacity: .4; cursor: not-allowed; }
 #rubble-cancel-btn  { background: #555; color: #fff; }
+
+/* ── Rubble payment mode ─────────────────────────────────────────────────── */
+
+/*
+ * The movement card that's already committed (excluded from selection).
+ * Heavy desaturation + dim + padlock cursor signals "in use, not selectable"
+ * rather than "broken" or "optional".
+ */
+.card-btn.rubble-excluded {
+  opacity: 0.35;
+  filter: saturate(0.15) brightness(0.7);
+  cursor: not-allowed;
+  pointer-events: none;
+  position: relative;
+}
+
+/* Padlock overlay in the top-right corner of the excluded card */
+.card-btn.rubble-excluded::after {
+  content: '🔒';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: .75rem;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+/* ── Rubble prompt in #hand-messages ─────────────────────────────────────── */
+
+.rubble-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  font-size: .78rem;
+}
+
+.rubble-prompt-header {
+  font-weight: bold;
+  color: #e74c3c;
+  font-size: .82rem;
+  letter-spacing: .03em;
+}
+
+.rubble-committed-note {
+  color: #ffccaa;
+  line-height: 1.35;
+}
+
+.rubble-selection-count {
+  color: #ffaaaa;
+  font-size: .75rem;
+  font-style: italic;
+  transition: color .2s;
+}
+
+.rubble-prompt-actions {
+  display: flex;
+  gap: .4rem;
+  margin-top: .35rem;
+}
