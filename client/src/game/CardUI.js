@@ -497,6 +497,29 @@ class CardUI {
     document.getElementById('open-market-btn').disabled = !enabled;
   }
 
+  showReservePicker(soldOutKey, reserveCards, onChosen) {
+    const overlay   = document.getElementById('reserve-picker');
+    const container = document.getElementById('reserve-cards');
+    const soldOutLbl = document.getElementById('reserve-sold-out-label');
+
+    soldOutLbl.textContent = `Empty slot: ${soldOutKey.replace(/_/g, ' ')}`;
+    container.innerHTML = '';
+
+    for (const card of reserveCards) {
+      const el = this._makeMarketCardEl(card, true, true);
+      // Remove the market-purchase listener by cloning (strips all listeners)
+      const clean = el.cloneNode(true);
+      clean.addEventListener('click', (e) => {
+        if (e.target.closest('.card-info-btn')) return;
+        onChosen(card.key);
+        overlay.classList.add('hidden');
+      });
+      container.appendChild(clean);
+    }
+
+    overlay.classList.remove('hidden');
+  }
+
   // ── Rubble payment mode ──────────────────────────────────────────────────
 
   enterRubblePaymentMode(count, excludeInstanceId, onConfirm, onCancel) {
