@@ -16,7 +16,7 @@ const H_HALF = 43.3;
 const TERRAIN_STYLE = {
   jungle:   { fill:'#1e5e1e', stroke:'#143d14', label:'🌿'  },
   water:    { fill:'#1a5fa8', stroke:'#0e3d6e', label:'🌊'  },
-  village:  { fill:'#c8a000', stroke:'#8a6e00', label:'🏘'  },
+  village:  { fill:'#c8a000', stroke:'#8a6e00', label:'🏘️'  },
   mountain: { fill:'#251e17', stroke:'#18100c', label:'⛰', textColor: '#a2e5ff'  },
   camp:     { fill:'#c57466', stroke:'#b84c39', label:'🚫'  },
   rubble:   { fill:'#6b6b6b', stroke:'#444',    label:'🪨'  },
@@ -116,7 +116,7 @@ class HexRenderer {
     icon.setAttribute('y', cy + 2);
     icon.setAttribute('text-anchor', 'middle');
     icon.setAttribute('dominant-baseline', 'middle');
-    icon.setAttribute('font-size', '18');
+    icon.setAttribute('font-size', '32');
     icon.setAttribute('pointer-events', 'none');
     if (style.textColor) icon.setAttribute('fill', style.textColor);
     icon.textContent = style.label;
@@ -130,7 +130,7 @@ class HexRenderer {
       badge.setAttribute('x', cx);
       badge.setAttribute('y', cy + 24);
       badge.setAttribute('text-anchor', 'middle');
-      badge.setAttribute('font-size', '24');
+      badge.setAttribute('font-size', '18');
       badge.setAttribute('fill', '#fff');
       badge.setAttribute('font-weight', 'bold');
       badge.setAttribute('pointer-events', 'none');

@@ -36,7 +36,7 @@ class CardUI {
     this._rubbleNeeded    = 0;
     this._rubblePool      = new Map(); // instanceId → card
     this._rubbleExcludeId = null;
-    this._rubbleExcludeName  = null; // display name of the committed movement card
+    this._rubbleExcludeName  = null;
     this._rubbleOnConfirm = null;
     this._rubbleOnCancel  = null;
 
@@ -68,7 +68,6 @@ class CardUI {
   }
 
   _bindInfoDelegates() {
-    // Delegate info button clicks on both hand and market areas
     document.addEventListener('click', (e) => {
       const infoBtn = e.target.closest('.card-info-btn');
       if (!infoBtn) return;
@@ -157,17 +156,7 @@ class CardUI {
     this._syncRubbleConfirmButton();
   }
 
-  // ── Core hand render — called once per hand change ───────────────────────
-  //
-  // Diffs the DOM against this._currentHand:
-  //   • Cards no longer in hand → removed
-  //   • Cards already rendered → updated in-place (name/stats may change on
-  //     debug hand-set; instanceId is the stable key)
-  //   • New cards → appended
-  //
-  // After the diff, _syncHandState() applies the correct CSS classes for the
-  // current mode (selected, in-pool, rubble-excluded, etc.) without touching
-  // innerHTML.
+  // ── Core hand render ─────────────────────────────────────────────────────
 
   renderHand(cards) {
     this._currentHand = cards;
@@ -182,7 +171,7 @@ class CardUI {
       if (!incomingIds.has(btn.dataset.instanceId)) btn.remove();
     }
 
-    // Add new cards (append in hand order)
+    // Add new cards
     for (const card of cards) {
       if (!existingIds.has(card.instanceId)) {
         this.handEl.appendChild(this._makeCardButton(card));
@@ -192,10 +181,10 @@ class CardUI {
     // Ensure DOM order matches hand order
     for (const card of cards) {
       const btn = this.handEl.querySelector(`[data-instance-id="${CSS.escape(card.instanceId)}"]`);
-      if (btn) this.handEl.appendChild(btn); // appendChild moves if already present
+      if (btn) this.handEl.appendChild(btn);
     }
 
-    // Prune stale pool entries (cards that left the hand)
+    // Prune stale pool entries
     for (const id of [...this._purchasePool.keys()]) {
       if (!incomingIds.has(id)) this._purchasePool.delete(id);
     }
@@ -207,17 +196,14 @@ class CardUI {
     if (this._mode === 'market') this._updatePurchaseTotal();
   }
 
-  // Apply CSS classes to every card button to reflect current mode + pools.
   _syncHandState() {
     for (const btn of this.handEl.querySelectorAll('.card-btn')) {
       const id = btn.dataset.instanceId;
 
-      // Rubble-excluded cards are visually dimmed and non-interactive
       const excluded = this._mode === 'rubble' && id === this._rubbleExcludeId;
       btn.classList.toggle('rubble-excluded', excluded);
       btn.disabled = excluded;
 
-      // Pool membership
       if (this._mode === 'market') {
         btn.classList.toggle('in-pool', this._purchasePool.has(id));
         btn.classList.remove('selected');
@@ -231,33 +217,50 @@ class CardUI {
     }
   }
 
-  // ── Card button factory — only called for NEW cards ──────────────────────
+  // ── Card button factory ───────────────────────────────────────────────────
+  // Two-tone frame: a header strip + a body area, both themed by terrain type.
 
   _makeCardButton(card) {
     const btn = document.createElement('button');
-    btn.className = 'card-btn' + (card.movementTerrain ? ` terrain-${card.movementTerrain}` : '');
+    btn.className = `card-btn terrain-${card.movementTerrain || 'empty'}`;
     btn.dataset.instanceId = card.instanceId;
 
     const terrainIcon = this._terrainIcon(card.movementTerrain);
-    const movesLabel  = card.movementTotal > 0
-      ? `<span class="card-moves">${terrainIcon} ${card.movementTotal}</span>` : '';
-    const oneTimeLabel = card.oneTimeUse ? '<span class="card-onetime">⚡ One-time</span>' : '';
-    const powerLabel  = card.purchasingPower
-      ? `<span class="card-gold">💰 ${card.purchasingPower}</span>` : '';
-    const effectDesc = this._specialDescription(card.specialEffect);
+    const movesLine = card.movementTotal > 0
+      ? `<div class="card-stat-line">
+           <span>${terrainIcon} ${card.movementTotal}</span>
+         </div>` : '';
+
+    const goldBadge = card.purchasingPower
+      ? `<span class="card-gold-badge">💰 ${card.purchasingPower}</span>` : '';
+
+    const effectDesc  = this._specialDescription(card.specialEffect);
+    const effectLine  = effectDesc
+      ? `<div class="card-effect-line">${effectDesc}</div>` : '';
+
+    const oneTimeLine = card.oneTimeUse
+      ? `<div class="card-onetime-line">❌</div>` : '';
+
     const fullDesc = this._specialFullDescription(card.specialEffect);
-    const effectLabel = effectDesc
-      ? `<span class="card-effect-desc">${effectDesc}</span>` : '';
-    const infoBtn = fullDesc
+    const infoBtn  = fullDesc
       ? `<span class="card-info-btn" data-effect="${card.specialEffect}" title="Details">ℹ️</span>` : '';
+
+    const costCorner = card.cost > 0
+      ? `<span class="card-cost-corner">💰 ${card.cost}</span>` : '';
 
     btn.innerHTML = `
       ${infoBtn}
-      <span class="card-name">${card.cardName || card.key}</span>
-      ${movesLabel}
-      ${powerLabel}
-      ${effectLabel}
-      ${oneTimeLabel}`;
+      <div class="card-header-strip">
+        <span class="card-name">${card.cardName || card.key}</span>
+        ${costCorner}
+      </div>
+      <div class="card-body-area">
+        ${movesLine}
+        ${effectLine}
+        ${oneTimeLine}
+        ${goldBadge}
+      </div>`;
+
     return btn;
   }
 
@@ -277,9 +280,9 @@ class CardUI {
       case 'transmitter':  return '📡 Free card from market';
       case 'cartographer': return '🗺️ Draw 2 extra cards';
       case 'compass':      return '🧭 Draw 3 cards';
-      case 'scientist':    return '🔬 Draw 1 + remove a card';
-      case 'travel_log':   return '📖 Draw 2 + remove up to 2';
-      case 'native':       return '🏹 Move 1 any space';
+      case 'scientist':    return '🔬 Draw 1 & remove a card';
+      case 'travel_log':   return '📖 Draw 2 & remove up to 2';
+      case 'native':       return '🏹 Move 1 space';
       default:             return '';
     }
   }
@@ -339,10 +342,8 @@ class CardUI {
     btn.disabled      = !ready;
     btn.style.opacity = ready ? '1' : '.4';
     btn.style.cursor  = ready ? 'pointer' : 'not-allowed';
-    // Keep in-pool classes in sync with DOM
     this._syncHandState();
 
-    // Update the "X of N selected" counter in the prompt
     const counter = document.getElementById('rubble-selection-count');
     if (counter) {
       counter.textContent = `${this._rubblePool.size} of ${this._rubbleNeeded} selected`;
@@ -366,39 +367,45 @@ class CardUI {
 
     const isTransmitter = this._transmitterBonus > 0;
 
+    const shopAvailable = document.createElement('div');
+    shopAvailable.className = 'market-available-section';
+
     const shopHeader = document.createElement('div');
     shopHeader.className = 'market-section-header';
     shopHeader.textContent = 'Shop';
-    this.shopEl.appendChild(shopHeader);
+    shopAvailable.appendChild(shopHeader);
 
     const shopRow = document.createElement('div');
     shopRow.className = 'market-row';
-    this.shopEl.appendChild(shopRow);
-
+    shopAvailable.appendChild(shopRow);
+    
     for (const card of (market?.shop ?? [])) {
       shopRow.appendChild(this._makeMarketCardEl(card, false));
     }
+    
+    this.shopEl.appendChild(shopAvailable);
 
     const reserveCards = (market?.reserve ?? []).filter(c => c && c.remaining > 0);
     if (reserveCards.length > 0) {
-      const divider = document.createElement('div');
-      divider.className = 'market-divider';
-      this.shopEl.appendChild(divider);
+      const shopReserve = document.createElement('div');
+      shopReserve.className = 'market-reserve-section';
 
       const reserveHeader = document.createElement('div');
       reserveHeader.className = 'market-section-header market-reserve-header';
       reserveHeader.textContent = isTransmitter
         ? 'Reserve (Transmitter: buyable)'
         : 'Reserve (not yet available)';
-      this.shopEl.appendChild(reserveHeader);
+      shopReserve.appendChild(reserveHeader);
 
       const reserveRow = document.createElement('div');
       reserveRow.className = 'market-row';
-      this.shopEl.appendChild(reserveRow);
+      shopReserve.appendChild(reserveRow);
 
       for (const card of reserveCards) {
         reserveRow.appendChild(this._makeMarketCardEl(card, true, isTransmitter));
       }
+
+      this.shopEl.appendChild(shopReserve);
     }
 
     if (this._mode === 'market') this._updateAffordability();
@@ -413,30 +420,39 @@ class CardUI {
     }
 
     const btn = document.createElement('button');
-    const reserveClass = isReserve ? ' market-reserve' : '';
-    const terrainClass = card.movementTerrain ? ` terrain-${card.movementTerrain}` : '';
-    btn.className = `market-card${reserveClass}${terrainClass}`;
+    btn.className = `market-card terrain-${card.movementTerrain || 'empty'}`;
+    if (isReserve) btn.classList.add('market-reserve');
     btn.dataset.cardKey = card.key;
 
     const terrainIcon = this._terrainIcon(card.movementTerrain);
-    const movesLabel  = card.movementTotal > 0
-      ? `<span class="card-moves">${terrainIcon} ${card.movementTotal}</span>` : '';
-    const oneTimeLabel = card.oneTimeUse ? '<span class="card-onetime">⚡ One-time</span>' : '';
+    const movesLine = card.movementTotal > 0
+      ? `<div class="card-stat-line">
+           <span>${terrainIcon} ${card.movementTotal}</span>
+         </div>` : '';
+
     const effectDesc = this._specialDescription(card.specialEffect);
+    const effectLine = effectDesc
+      ? `<div class="card-effect-line">${effectDesc}</div>` : '';
+
+    const oneTimeLine = card.oneTimeUse
+      ? `<div class="card-onetime-line">❌</div>` : '';
+
     const fullDesc = this._specialFullDescription(card.specialEffect);
-    const effectLabel = effectDesc
-      ? `<span class="card-effect-desc">${effectDesc}</span>` : '';
-    const infoBtn = fullDesc
+    const infoBtn  = fullDesc
       ? `<span class="card-info-btn" data-effect="${card.specialEffect}" title="Details">ℹ️</span>` : '';
 
     btn.innerHTML = `
       ${infoBtn}
-      <span class="card-name">${card.cardName}</span>
-      ${movesLabel}
-      <span class="card-cost">💰 Cost: ${card.cost}</span>
-      <span class="card-remaining">×${card.remaining} left</span>
-      ${effectLabel}
-      ${oneTimeLabel}`;
+      <div class="card-header-strip">
+        <span class="card-name">${card.cardName}</span>
+        <span class="card-cost-corner">💰 ${card.cost}</span>
+      </div>
+      <div class="card-body-area">
+        ${movesLine}
+        ${effectLine}
+        ${oneTimeLine}
+        <span class="card-remaining">×${card.remaining} left</span>
+      </div>`;
 
     if (isReserve && !transmitterActive) {
       btn.classList.add('reserve-locked');
@@ -479,7 +495,7 @@ class CardUI {
   _updateAffordability() {
     const power = this._currentPurchasePower();
     this.shopEl.querySelectorAll('.market-card:not(.empty):not(.reserve-locked)').forEach(btn => {
-      const costEl = btn.querySelector('.card-cost');
+      const costEl = btn.querySelector('.card-cost-corner');
       if (!costEl) return;
       const cost = parseFloat(costEl.textContent.replace(/[^0-9.]/g, ''));
       const affordable = power >= cost;
@@ -506,16 +522,15 @@ class CardUI {
   }
 
   showReservePicker(soldOutKey, reserveCards, onChosen) {
-    const overlay   = document.getElementById('reserve-picker');
-    const container = document.getElementById('reserve-cards');
+    const overlay    = document.getElementById('reserve-picker');
+    const container  = document.getElementById('reserve-cards');
     const soldOutLbl = document.getElementById('reserve-sold-out-label');
 
     soldOutLbl.textContent = `Empty slot: ${soldOutKey.replace(/_/g, ' ')}`;
     container.innerHTML = '';
 
     for (const card of reserveCards) {
-      const el = this._makeMarketCardEl(card, true, true);
-      // Remove the market-purchase listener by cloning (strips all listeners)
+      const el    = this._makeMarketCardEl(card, true, true);
       const clean = el.cloneNode(true);
       clean.addEventListener('click', (e) => {
         if (e.target.closest('.card-info-btn')) return;
@@ -537,8 +552,6 @@ class CardUI {
     this._rubbleOnConfirm = onConfirm;
     this._rubbleOnCancel  = onCancel;
 
-    // Look up the display name of the committed movement card so the prompt
-    // can reference it by name rather than leaving the player guessing.
     const excludedCard = excludeInstanceId
       ? this._currentHand.find(c => c.instanceId === excludeInstanceId)
       : null;
@@ -549,9 +562,9 @@ class CardUI {
   }
 
   exitRubblePaymentMode() {
-    this._rubblePool      = new Map();
-    this._rubbleNeeded    = 0;
-    this._rubbleExcludeId = null;
+    this._rubblePool        = new Map();
+    this._rubbleNeeded      = 0;
+    this._rubbleExcludeId   = null;
     this._rubbleExcludeName = null;
     document.getElementById('hand-messages').innerHTML = '';
     this._setMode('movement');
@@ -564,7 +577,6 @@ class CardUI {
   _renderRubbleControls() {
     const messages = document.getElementById('hand-messages');
 
-    // Build a human-readable "X more card(s)" string
     const cardWord = this._rubbleNeeded === 1 ? 'card' : 'cards';
     const nameNote = this._rubbleExcludeName
       ? `<span class="rubble-committed-note">🔒 ${this._rubbleExcludeName} is already paying — pick ${this._rubbleNeeded} more ${cardWord} for the toll.</span>`

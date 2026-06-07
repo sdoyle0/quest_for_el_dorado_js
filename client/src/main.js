@@ -38,15 +38,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const waitingHint    = document.getElementById('waiting-hint');
 
   // ── Game UI refs ───────────────────────────────────────────────────────────
-  const playerLabel = document.getElementById('current-player-label');
-  const turnBanner  = document.getElementById('turn-banner');
-  const turnDot     = document.getElementById('turn-color-dot');
-  const legendEl    = document.getElementById('player-legend');
-  const logEl       = document.getElementById('game-log');
-  const boardEl     = document.getElementById('hex-board');
-  const handUI      = document.getElementById('player-hand-ui');
-  const zoomInBtn   = document.getElementById('zoom-in-btn');
-  const zoomOutBtn  = document.getElementById('zoom-out-btn');
+  const playerLabel  = document.getElementById('current-player-label');
+  const turnBannerSub= document.getElementById('turn-banner-sub');
+  const turnBanner   = document.getElementById('turn-banner');
+  const turnDot      = document.getElementById('turn-color-dot');
+  const legendEl     = document.getElementById('player-legend');
+  const logEl        = document.getElementById('game-log');
+  const boardEl      = document.getElementById('hex-board');
+  const handUI       = document.getElementById('player-hand-ui');
+  const zoomInBtn    = document.getElementById('zoom-in-btn');
+  const zoomOutBtn   = document.getElementById('zoom-out-btn');
 
   let boardZoom = 1;
   const BOARD_ZOOM_STEP = 0.25;
@@ -212,7 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.players)    waitingRoomState.players    = data.players;
     if (data.maxPlayers) waitingRoomState.maxPlayers  = data.maxPlayers;
     if (data.hostId)     waitingRoomState.hostId      = data.hostId;
-    // Only re-render if we're still in the waiting screen
     if (waitingScreen.classList.contains('active')) renderWaitingRoom();
   };
 
@@ -250,30 +250,24 @@ document.addEventListener('DOMContentLoaded', () => {
     cardUI.exitRubblePaymentMode();
   }
 
-  // ── Board ──────────────────────────────────────────────────────────────────
   renderer.onTileClick = (tileId) => {
-    // Already in rubble-payment mode — ignore board clicks
     if (rubblePendingTileId) return;
 
     if (!selectedValidMoves.includes(tileId)) return;
 
     const tile = clientBoard.getTile(tileId);
     if (tile?.terrainType === 'rubble' && tile.movementCost > 1) {
-      // Enter rubble payment mode instead of moving immediately
       rubblePendingTileId = tileId;
-      rubbleCardsNeeded = tile.movementCost - 1; // movement card already "pays" 1
+      rubbleCardsNeeded = tile.movementCost - 1;
       cardUI.enterRubblePaymentMode(rubbleCardsNeeded, selectedCard?.instanceId, () => {
-        // onConfirm: collect selected cards and fire single event
         const cardIds = cardUI.getRubblePaymentCards();
         client.moveToRubble(tileId, cardIds);
-        // Clear movement card state so it can't be re-selected
         isMidMove = false;
         selectedCard = null;
         selectedValidMoves = [];
         renderer.clearHighlights();
         exitRubblePaymentMode();
       }, () => {
-        // onCancel
         exitRubblePaymentMode();
       });
 
@@ -367,10 +361,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Reserve picker ─────────────────────────────────────────────────────────
   client.onPromptReserveChoice = ({ soldOutKey, reserveCards }) => {
-    showReservePicker(soldOutKey, reserveCards);
-  };
-
-  client.onPromptReserveChoice = ({ soldOutKey, reserveCards }) => {
     cardUI.showReservePicker(soldOutKey, reserveCards, (chosenKey) => {
       client.chooseReserveCard(soldOutKey, chosenKey);
       log(`Added ${chosenKey.replace(/_/g, ' ')} to the market.`);
@@ -392,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     cardUI.updateSelectedCardForMovement(instanceId);
 
-    // Toggle deselect — clicking the selected card again clears it
+    // Toggle deselect
     if (selectedCard && selectedCard.instanceId === instanceId) {
       selectedCard = null;
       selectedValidMoves = [];
@@ -432,13 +422,31 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  // Returns the 1-2 character initials for a player name
+  function _initials(name) {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  }
+
   function updateTurnLabel(currentPlayerId) {
-    const isMe = client.isMyTurn(currentPlayerId);
-    const idx  = allPlayers.findIndex(p => p.id === currentPlayerId);
-    const p    = allPlayers.find(p => p.id === currentPlayerId);
+    const isMe  = client.isMyTurn(currentPlayerId);
+    const idx   = allPlayers.findIndex(p => p.id === currentPlayerId);
+    const p     = allPlayers.find(p => p.id === currentPlayerId);
     const color = PAWN_COLORS[idx] || '#aaa';
 
-    playerLabel.textContent = isMe ? '▶ YOUR TURN' : `${p?.name || '?'}'s turn`;
+    playerLabel.textContent = isMe ? '▶ Your turn' : `${p?.name || '?'}'s turn`;
+
+    // Sub-label: hand size for the active player
+    if (turnBannerSub) {
+      const handSz = p?.handSize ?? localHand.length;
+      turnBannerSub.textContent = isMe
+        ? `${localHand.length} card${localHand.length !== 1 ? 's' : ''} in hand`
+        : `${handSz} card${handSz !== 1 ? 's' : ''} in hand`;
+    }
+
     turnDot.style.background = color;
     turnBanner.style.color = color;
     turnBanner.style.borderColor = color;
@@ -449,7 +457,6 @@ document.addEventListener('DOMContentLoaded', () => {
       turnBanner.classList.remove('my-turn');
     }
 
-    // Update hand border color to show active player's color
     handUI.style.borderTopColor = isMe ? color : '#555';
 
     renderPlayerLegend(currentPlayerId);
@@ -459,32 +466,37 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderPlayerLegend(currentPlayerId) {
     legendEl.innerHTML = '';
     allPlayers.forEach((p, i) => {
+      const isActive = p.id === currentPlayerId;
       const row = document.createElement('div');
-      row.className = 'legend-row' + (p.id === currentPlayerId ? ' active-player' : '');
+      row.className = 'legend-row' + (isActive ? ' active-player' : '');
 
-      const arrow = document.createElement('span');
-      arrow.className = 'legend-turn-arrow';
-      arrow.textContent = '▶';
-
-      const dot = document.createElement('span');
-      dot.className = 'legend-dot';
-      dot.style.background = PAWN_COLORS[i];
+      // Avatar circle with initials
+      const avatar = document.createElement('span');
+      avatar.className = 'legend-avatar';
+      avatar.style.background = PAWN_COLORS[i];
+      avatar.textContent = _initials(p.name);
 
       const name = document.createElement('span');
       name.className = 'legend-name';
       name.textContent = p.name || `Player ${i + 1}`;
 
-      row.appendChild(arrow);
-      row.appendChild(dot);
+      // Hand count badge
+      const handCount = document.createElement('span');
+      handCount.className = 'legend-hand-count';
+      const hSize = (p.id === client.playerId) ? localHand.length : (p.handSize ?? 0);
+      handCount.textContent = hSize;
+
+      row.appendChild(avatar);
       row.appendChild(name);
 
       if (p.id === client.playerId) {
         const you = document.createElement('span');
         you.className = 'legend-you';
-        you.textContent = '(you)';
+        you.textContent = 'you';
         row.appendChild(you);
       }
 
+      row.appendChild(handCount);
       legendEl.appendChild(row);
     });
   }
@@ -506,7 +518,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Debug mode ─────────────────────────────────────────────────────────────
   if (DEBUG) {
-    // Wait until we're in game screen before appending the panel
     const _origOnGameStarted = client.onGameStarted;
     client.onGameStarted = (data) => {
       _origOnGameStarted(data);
@@ -515,7 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function appendDebugPanel() {
-    if (document.getElementById('debug-panel')) return; // already added
+    if (document.getElementById('debug-panel')) return;
     const panel = document.createElement('div');
     panel.id = 'debug-panel';
     panel.innerHTML = `

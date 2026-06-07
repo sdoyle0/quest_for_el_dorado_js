@@ -247,8 +247,8 @@ body {
   background: #0d1b2a;
   display: flex;
   flex-direction: column;
-  min-width: 0; /* prevent flex blowout */
-  position: relative; /* market overlay anchors to this, not the viewport */
+  min-width: 0;
+  position: relative;
 }
 
 #board-container {
@@ -298,12 +298,12 @@ body {
 /* HUD sidebar */
 #hud {
   width: 220px;
-  padding: 1rem;
-  background: #16213e;
+  padding: .75rem;
+  background: #13192e;
   display: flex;
   flex-direction: column;
   gap: .5rem;
-  border-left: 1px solid #2a2a5a;
+  border-left: 1px solid #1e2a4a;
 }
 
 /* ── Turn banner ─────────────────────────────────────────────────────────── */
@@ -313,94 +313,136 @@ body {
   gap: .5rem;
   padding: .6rem .75rem;
   border-radius: 8px;
-  background: #0d1b2a;
-  border: 2px solid #444;
-  transition: border-color .3s, box-shadow .3s, background .3s;
+  background: #0a1020;
+  border-left: 3px solid #444;
+  transition: border-color .3s, box-shadow .3s;
 }
 #turn-banner.my-turn {
-  border-color: currentColor;
-  box-shadow: 0 0 12px currentColor, inset 0 0 8px rgba(255,255,255,.05);
+  border-left-color: currentColor;
+  box-shadow: inset 0 0 8px rgba(255,255,255,.04);
   animation: pulse-turn 1.5s ease-in-out infinite;
 }
 @keyframes pulse-turn {
-  0%, 100% { box-shadow: 0 0 8px currentColor; }
-  50% { box-shadow: 0 0 18px currentColor, 0 0 30px currentColor; }
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .8; }
 }
 #turn-color-dot {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #444;
-  border: 2px solid rgba(255,255,255,.3);
+  border: 2px solid rgba(255,255,255,.2);
   flex-shrink: 0;
   transition: background .3s;
 }
-#current-player-label { font-size: .9rem; color: #ffd700; font-weight: bold; }
+/* Text stack inside banner */
+#turn-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+#current-player-label {
+  font-size: .85rem;
+  color: #ffd700;
+  font-weight: bold;
+  line-height: 1.2;
+}
+#turn-banner-sub {
+  font-size: .65rem;
+  color: #8899bb;
+  line-height: 1.2;
+}
 
 /* ── Player legend ───────────────────────────────────────────────────────── */
 #player-legend {
   display: flex;
   flex-direction: column;
-  gap: .3rem;
-  padding: .5rem .5rem;
-  background: #0d1b2a;
-  border-radius: 6px;
-  border: 1px solid #2a2a5a;
+  gap: 2px;
+  padding: .4rem .3rem;
+  background: #0d1422;
+  border-radius: 8px;
+  border: 1px solid #1e2a4a;
 }
 .legend-row {
   display: flex;
   align-items: center;
-  gap: .5rem;
-  padding: .2rem .3rem;
-  border-radius: 4px;
+  gap: .45rem;
+  padding: .3rem .4rem;
+  border-radius: 5px;
   transition: background .2s;
 }
 .legend-row.active-player {
-  background: rgba(255, 255, 255, .08);
+  background: rgba(255, 255, 255, .07);
 }
-.legend-dot {
-  width: 12px;
-  height: 12px;
+
+/* Avatar replaces the old dot */
+.legend-avatar {
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .55rem;
+  font-weight: 700;
+  color: #fff;
   flex-shrink: 0;
-  border: 1.5px solid rgba(255,255,255,.25);
+  letter-spacing: .01em;
+  border: 1.5px solid rgba(255,255,255,.15);
 }
+
 .legend-name {
   font-size: .78rem;
-  color: #bbb;
+  color: #8899bb;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
 }
 .legend-row.active-player .legend-name {
   color: #fff;
   font-weight: bold;
 }
 .legend-you {
-  font-size: .65rem;
+  font-size: .62rem;
   color: #ffd700;
-  margin-left: auto;
   flex-shrink: 0;
 }
-.legend-turn-arrow {
-  font-size: .75rem;
-  margin-right: .1rem;
-  opacity: 0;
-  transition: opacity .2s;
+
+/* Hand count badge */
+.legend-hand-count {
+  font-size: .6rem;
+  color: #667799;
+  background: #1a2236;
+  border-radius: 3px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+  min-width: 18px;
+  text-align: center;
 }
-.legend-row.active-player .legend-turn-arrow {
-  opacity: 1;
+.legend-row.active-player .legend-hand-count {
+  color: #aabbd0;
+  background: #1e2d44;
 }
+
 #game-log {
   flex: 1;
   overflow-y: auto;
-  font-size: .75rem;
-  color: #aaa;
-  border: 1px solid #2a2a5a;
-  padding: .5rem;
-  border-radius: 4px;
+  font-size: .72rem;
+  color: #7a8fa8;
+  background: #0a0f1c;
+  border: 1px solid #1a2236;
+  padding: .5rem .6rem;
+  border-radius: 6px;
+  line-height: 1.5;
 }
-#game-log p { margin-bottom: .25rem; }
+#game-log p {
+  margin-bottom: .2rem;
+  padding-bottom: .2rem;
+  border-bottom: 1px solid #111928;
+}
+#game-log p:first-child { color: #aabbc8; }
 
 /* Player hand */
 #player-hand-ui {
@@ -423,31 +465,126 @@ body {
 #hand-messages {
   flex: 1;
 }
+
+/* ── Card button — two-tone frame ────────────────────────────────────────── */
 .card-btn {
+  box-sizing: border-box;
   position: relative;
-  width: 130px;
-  min-width: 130px;
-  max-width: 130px;
-  padding: .5rem .6rem 1.6rem;
-  background: #1e3a5f;
-  border: 3px solid #4a7aad;
-  border-radius: 6px;
-  color: #fff;
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  padding: 0;
+  background: transparent;
+  border: 3px solid transparent;
+  border-radius: 7px;
+  overflow: hidden;
   cursor: pointer;
-  font-size: .75rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 6px rgba(0,0,0,.5);
+  transition: transform .1s, box-shadow .1s;
+}
+.card-btn:hover {
+  transform: translateY(-2px);
+  border-color: gray;
+}
+.card-btn.selected {
+  border-color: white;
+  transform: translateY(-2px);
+}
+
+/* Header strip */
+.card-header-strip {
+  height: 2rem;
+  padding: 5px 8px 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: .78rem;
+  font-family: Georgia, serif;
+  line-height: 1.1;
+}
+/* Body area */
+.card-body-area {
+  padding: 5px 8px 7px;
   display: flex;
   flex-direction: column;
   gap: 3px;
-  justify-content: space-between;
-  transition: background .15s;
+  flex: 1;
 }
-.card-btn:hover { border-color: hotpink; }
-.card-btn.selected { border-color: deeppink; }
-.card-name { font-weight: bold; font-size: .85rem; }
-.card-moves { font-size: .9rem; }
-.card-gold { color: #ffd700; font-size: .8rem; }
-.card-onetime { color: #ffaaaa; font-size: .65rem; font-style: italic; margin-top: auto; }
-.card-effect-desc { color: #ddd; font-size: .65rem; line-height: 1.2; opacity: .9; white-space: normal; word-wrap: break-word; }
+.card-stat-line {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  font-size: 1.5rem;
+}
+.card-terrain-pip {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.card-cost-corner {
+  white-space: nowrap;
+}
+#player-hand-ui .card-cost-corner {
+    display: none;
+}
+.card-gold-badge {
+  display: inline-block;
+  font-size: 1.2rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+  margin-top: auto;
+  width: 100%;
+  align-self: flex-start;
+}
+.card-onetime-line {
+  font-size: 1.2rem;
+  font-style: italic;
+  opacity: .75;
+  margin-top: auto;
+}
+.card-effect-line {
+  line-height: 1.25;
+  opacity: .9;
+}
+
+/* ── Terrain colour themes for .card-btn ────────────────────────────────── */
+.card-btn.terrain-jungle .card-header-strip, .market-card.terrain-jungle .card-header-strip   { background: #0e3a0e; color: #a8f0a8; }
+.card-btn.terrain-jungle .card-body-area, .market-card.terrain-jungle .card-body-area         { background: #1e5e1e; color: #c0eac0; }
+.card-btn.terrain-jungle .card-terrain-pip, .market-card.terrain-jungle .card-terrain-pip     { background: #4cff4c; }
+.card-btn.terrain-jungle .card-gold-badge                                                     { color: #a8f0a8; }
+
+.card-btn.terrain-water .card-header-strip, .market-card.terrain-water .card-header-strip     { background: #061e42; color: #aaccff; }
+.card-btn.terrain-water .card-body-area, .market-card.terrain-water .card-body-area           { background: #1a5fa8; color: #c0d8ff; }
+.card-btn.terrain-water .card-terrain-pip, .market-card.terrain-water .card-terrain-pip       { background: #c8a000; }
+.card-btn.terrain-water .card-gold-badge, .market-card.terrain-water .card-gold-badge         { color: #aaccff; }
+
+.card-btn.terrain-village .card-header-strip, .market-card.terrain-village .card-header-strip { background: #7a5e00; color: #ffe680; }
+.card-btn.terrain-village .card-body-area, .market-card.terrain-village .card-body-area       { background: #c8a000; color: #ffd966; }
+.card-btn.terrain-village .card-terrain-pip, .market-card.terrain-village .card-terrain-pip   { background: #ffd700; }
+.card-btn.terrain-village .card-gold-badge, .market-card.terrain-village .card-gold-badge     { color: #ffe680; }
+
+.card-btn.terrain-wild .card-header-strip, .market-card.terrain-wild .card-header-strip       { background: #161616; color: #cccccc; }
+.card-btn.terrain-wild .card-body-area, .market-card.terrain-wild .card-body-area             { background: #2a2a2a; color: #bbbbbb; }
+.card-btn.terrain-wild .card-terrain-pip, .market-card.terrain-wild .card-terrain-pip         { background: #888888; }
+.card-btn.terrain-wild .card-gold-badge, .market-card.terrain-wild .card-gold-badge           { color: #cccccc; }
+
+.card-btn.terrain-empty .card-header-strip, .market-card.terrain-empty .card-header-strip     { background: #4a1a7a; color: #d4aaff; }
+.card-btn.terrain-empty .card-body-area, .market-card.terrain-empty .card-body-area           { background: #220a3a; color: #c0aaee; }
+.card-btn.terrain-empty .card-terrain-pip, .market-card.terrain-empty .card-terrain-pip       { background: #aa55ff; }
+.card-btn.terrain-empty .card-gold-badge                                                      { color: #d4aaff; }
+
+
+/* Pool selection — golden glow on the header */
+.card-btn.in-pool{
+  border-color: deeppink;
+  filter: brightness(1.75);
+}
 
 /* ── Card info button ─────────────────────────────────────────────────── */
 .card-info-btn {
@@ -458,20 +595,19 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: .7rem;
-  width: 22px;
-  height: 22px;
+  font-size: .65rem;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: #ffd700;
-  border: 2px solid #fff;
-  color: #000;
-  box-shadow: 0 2px 6px rgba(0,0,0,.5);
-  transition: transform .15s, box-shadow .15s;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.25);
+  color: #fff;
+  transition: transform .15s, background .15s;
   z-index: 2;
 }
 .card-info-btn:hover {
   transform: scale(1.25);
-  box-shadow: 0 2px 10px rgba(255, 215, 0, .7);
+  background: rgba(255,255,255,.28);
 }
 
 /* ── Card info modal ──────────────────────────────────────────────────── */
@@ -538,28 +674,17 @@ body {
 #hand-controls button:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ── Market overlay ──────────────────────────────────────────────────────── */
-/*
- * Anchored inside #board-and-hand-container (position: relative) so it
- * sits above the board without covering the hand. The hand stays fully
- * interactive below it while the market is open.
- *
- * bottom: 140px  = hand height
- * left/right: 0  = full width of the board+hand column, no sidebar offset
- *
- * Previously used a fixed right: 220px that hard-coded the sidebar width.
- * Now it's contained within its flex parent so it doesn't need to know
- * about the sidebar at all.
- */
 #card-market {
   position: absolute;
-  bottom: 160px;
-  left: 0;
+  width: 850px;
+  bottom: 180px;
+  left: 20px;
   right: 0;
   background: #0d2035;
   border-top: 2px solid #c0a830;
   padding: .75rem;
+  padding-bottom: 0;
   z-index: 10;
-  max-height: 55vh;
   overflow-y: auto;
 }
 
@@ -567,7 +692,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: .5rem;
+  padding-bottom: .5rem;
+  border-bottom: 1px solid #2a3a5a;
   color: #ffd700;
   font-weight: bold;
 }
@@ -592,83 +718,80 @@ body {
   color: #fff;
 }
 
-/* Shop slots container — vertical sections */
 #shop-slots {
   display: flex;
-  flex-direction: column;
   gap: .5rem;
 }
 
-/* A horizontal row of cards within a section */
 .market-row {
   display: flex;
   flex-direction: row;
-  gap: .5rem;
+  gap: 1rem;
   flex-wrap: wrap;
 }
 
-/* Section headings inside the market */
 .market-section-header {
   font-size: .7rem;
   font-weight: bold;
   letter-spacing: .06em;
   text-transform: uppercase;
   color: #c0a830;
-  padding: .1rem 0;
+  padding: .5rem 0;
 }
 
 .market-reserve-header {
   color: #8899bb;
 }
 
-/* Thin rule between shop and reserve */
-.market-divider {
-  border: none;
-  border-top: 1px solid #2a3a5a;
-  margin: .25rem 0;
+.market-available-section {
+  flex: 1 1 0;
 }
 
+.market-reserve-section {
+  border-left: 1px solid #2a3a5a;
+  padding-left: .5rem;
+  padding-bottom: .5rem;
+  flex: 2 2 0;
+  background-color: #001125;
+}
+
+/* ── Market cards — same two-tone frame as hand cards ────────────────────── */
 .market-card {
   position: relative;
-  width: 130px;
-  min-width: 130px;
-  max-width: 130px;
-  padding: .5rem .6rem 1.6rem;
-  background: #1e3a5f;
-  border: 2px solid #c0a830;
-  border-radius: 6px;
-  color: #fff;
+  width: 120px;
+  height: 140px;
+  min-width: 120px;
+  max-width: 120px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  overflow: hidden;
   cursor: pointer;
-  font-size: .75rem;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
+  transition: transform .1s, box-shadow .1s;
 }
-.market-card.empty { opacity: .4; cursor: default; }
-.market-card:not(.empty):not(.reserve-locked):hover { background: #2a5080; border-color: #ffd700; }
-.card-cost { color: #ffd700; font-size: .75rem; }
-.card-remaining { color: #aaa; font-size: .65rem; }
-.card-effect { color: #c0a830; font-size: .7rem; }
-
-/* Reserve cards when NOT bought via Transmitter — greyed out, no hover */
-.market-card.market-reserve {
-  border-color: #3a4a6a;
-  background: #141e30;
+.market-card:not(.empty):not(.reserve-locked):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(0,0,0,.5);
+}
+.market-card.empty {
+  opacity: .4;
+  cursor: default;
+  background: #111;
+  padding: .5rem;
+  font-size: .72rem;
+  color: #666;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
 }
 
-.market-card.market-reserve.reserve-locked {
-  background: #0d1520;
-  border-color: #333;
+
+/* Reserve — locked state */
+.market-card.reserve-locked {
   cursor: not-allowed;
-}
-.market-card.market-reserve.reserve-locked .card-name,
-.market-card.market-reserve.reserve-locked .card-moves,
-.market-card.market-reserve.reserve-locked .card-cost,
-.market-card.market-reserve.reserve-locked .card-remaining,
-.market-card.market-reserve.reserve-locked .card-effect-desc,
-.market-card.market-reserve.reserve-locked .card-onetime {
-  opacity: .45;
 }
 .market-card.reserve-locked .card-info-btn,
 .market-card.cant-afford .card-info-btn {
@@ -676,13 +799,25 @@ body {
   filter: none !important;
 }
 
-/* Reserve cards that ARE purchasable (Transmitter active) */
-.market-card.market-reserve:not(.reserve-locked) {
-  border-color: #8844cc;
-  background: #1e1040;
+/* Affordable highlight */
+.market-card.can-afford {
+  box-shadow: 0 0 0 2px #4cff4c, 0 2px 8px rgba(76,255,76,.25);
 }
-.market-card.market-reserve:not(.reserve-locked):hover {
-  background: #2a1a5a;
+.market-card.can-afford:hover {
+  box-shadow: 0 0 0 2px #7fff7f, 0 4px 12px rgba(76,255,76,.35);
+}
+
+/* Can't afford */
+.market-card.cant-afford {
+  cursor: not-allowed;
+}
+.market-card.cant-afford:hover {
+  transform: none;
+  opacity: .6;
+}
+
+.card-remaining {
+  margin-top: auto;
 }
 
 /* Modal */
@@ -715,70 +850,6 @@ body {
 }
 #modal-confirm-btn { background: #ffd700; color: #1a1a2e; font-weight: bold; }
 #modal-cancel-btn  { background: #555; color: #fff; }
-
-.card-btn.terrain-water { background: #0000ffbb;}
-.card-btn.terrain-village { background: #eac200bb; }
-.card-btn.terrain-jungle { background: #007600bb; }
-.card-btn.terrain-wild { background: #333333bb; }
-.card-btn.terrain-empty { background: #7b2fa0bb; }
-
-/* Market cards also get terrain colors */
-.market-card.terrain-jungle { background: #005a00cc; }
-.market-card.terrain-water { background: #002299cc; }
-.market-card.terrain-village { background: #8a7200cc; }
-.market-card.terrain-wild { background: #2a2a2acc; }
-.market-card.terrain-empty { background: #4a1570cc; }
-.market-card.market-reserve.terrain-jungle { background: #003a00cc; }
-.market-card.market-reserve.terrain-water { background: #001a66cc; }
-.market-card.market-reserve.terrain-village { background: #5a4a00cc; }
-.market-card.market-reserve.terrain-wild { background: #1a1a1acc; }
-.market-card.market-reserve.terrain-empty { background: #2a0a40cc; }
-
-/* Purchase pool selection */
-.card-btn.in-pool {
-  border-color: #ffd700;
-  background: #2a4a10;
-  box-shadow: 0 0 6px #ffd700aa;
-}
-.card-btn.in-pool::after {
-  content: ' ✓';
-  color: #ffd700;
-  font-weight: bold;
-}
-
-/* Market: affordable state — bright border to show purchasable */
-.market-card.can-afford {
-  border-color: #4cff4c;
-  box-shadow: 0 0 8px rgba(76, 255, 76, .4), inset 0 0 12px rgba(76, 255, 76, .08);
-}
-.market-card.can-afford:hover {
-  border-color: #7fff7f;
-  box-shadow: 0 0 12px rgba(76, 255, 76, .6), inset 0 0 16px rgba(76, 255, 76, .12);
-}
-
-/* Market: cant-afford state — dimmed text but info button stays visible */
-.market-card.cant-afford {
-  background: #0d1520;
-  border-color: #333;
-  cursor: not-allowed;
-}
-.market-card.cant-afford .card-name,
-.market-card.cant-afford .card-moves,
-.market-card.cant-afford .card-cost,
-.market-card.cant-afford .card-remaining,
-.market-card.cant-afford .card-effect-desc,
-.market-card.cant-afford .card-onetime {
-  opacity: .4;
-  filter: saturate(0.3);
-}
-.market-card.cant-afford:hover .card-name,
-.market-card.cant-afford:hover .card-moves,
-.market-card.cant-afford:hover .card-cost,
-.market-card.cant-afford:hover .card-remaining,
-.market-card.cant-afford:hover .card-effect-desc,
-.market-card.cant-afford:hover .card-onetime {
-  opacity: .55;
-}
 
 /* ── Reserve picker overlay ─────────────────────────────────────────────── */
 #reserve-picker {
@@ -821,22 +892,17 @@ body {
 }
 .reserve-card-btn {
   min-width: 108px;
-  padding: .5rem .65rem;
-  background: #1e3a5f;
-  border: 2px solid #4a7aad;
-  border-radius: 6px;
-  color: #fff;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  overflow: hidden;
   cursor: pointer;
-  font-size: .75rem;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  transition: background .15s, border-color .15s;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
+  transition: transform .1s;
 }
-.reserve-card-btn:hover {
-  background: #2a5080;
-  border-color: #ffd700;
-}
+.reserve-card-btn:hover { transform: translateY(-2px); }
 
 /* Debug panel */
 #debug-panel {
@@ -916,12 +982,6 @@ body {
 #rubble-cancel-btn  { background: #555; color: #fff; }
 
 /* ── Rubble payment mode ─────────────────────────────────────────────────── */
-
-/*
- * The movement card that's already committed (excluded from selection).
- * Heavy desaturation + dim + padlock cursor signals "in use, not selectable"
- * rather than "broken" or "optional".
- */
 .card-btn.rubble-excluded {
   opacity: 0.35;
   filter: saturate(0.15) brightness(0.7);
@@ -930,7 +990,6 @@ body {
   position: relative;
 }
 
-/* Padlock overlay in the top-right corner of the excluded card */
 .card-btn.rubble-excluded::after {
   content: '🔒';
   position: absolute;
@@ -940,8 +999,6 @@ body {
   pointer-events: none;
   opacity: 0.9;
 }
-
-/* ── Rubble prompt in #hand-messages ─────────────────────────────────────── */
 
 .rubble-prompt {
   display: flex;
