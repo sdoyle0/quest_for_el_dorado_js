@@ -534,7 +534,7 @@ body {
 }
 .card-gold-badge {
   display: inline-block;
-  font-size: 1.2rem;
+  font-size: .8rem;
   padding: 1px 5px;
   border-radius: 3px;
   font-weight: 600;
