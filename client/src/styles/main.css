@@ -731,12 +731,14 @@ body {
 }
 
 .market-section-header {
-  font-size: .7rem;
+  font-size: 1rem;
   font-weight: bold;
   letter-spacing: .06em;
   text-transform: uppercase;
   color: #c0a830;
   padding: .5rem 0;
+  display: flex;
+  justify-content: center;
 }
 
 .market-reserve-header {
@@ -786,6 +788,9 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 80px;
+}
+.market-reserve-section .market-card {
+    opacity: .75;
 }
 
 
