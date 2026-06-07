@@ -108,6 +108,7 @@ class CardUI {
 
   _bindHandDelegate() {
     this.handEl.addEventListener('click', (e) => {
+      if (e.target.closest('.card-info-btn')) return;
       const btn = e.target.closest('.card-btn');
       if (!btn) return;
       const instanceId = btn.dataset.instanceId;
