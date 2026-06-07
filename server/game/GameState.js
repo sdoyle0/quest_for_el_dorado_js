@@ -326,7 +326,7 @@ class GameStateManager {
         // BUG FIX 1: Dispose the Transmitter card NOW (it's one-time-use).
         // Then open the market. Previously _disposeFinishedCard was never
         // called because the Transmitter path returned early.
-        player.playCard(card.instanceId); // oneTimeUse=true → goes to removedCards
+        player.playCard(card.instanceId, true);
         this.transmitterActive = true;
         this.state = GS.AWAITING_CARD;
         this.playedCardData = null;
