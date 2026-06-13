@@ -1469,3 +1469,38 @@ body {
   from { transform: translateY(-100%); }
   to   { transform: translateY(0); }
 }
+
+/* Override the Round 2 overflow:hidden that broke scrolling */
+#board-container {
+  overflow: auto !important;
+}
+ 
+/* The scroll-inner wrapper: starts at 100%/100%, grows when JS scales it up */
+#board-scroll-inner {
+  width: 100%;
+  height: 100%;
+  transform-origin: top left;
+  /* No transition here — zoom is instant on button press */
+}
+ 
+/* The SVG fills its wrapper at natural size; JS controls the wrapper's size */
+#hex-board {
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* Remove the old direct transform — zoom now lives on the wrapper */
+  transform: none !important;
+  transform-origin: unset !important;
+}
+ 
+/* ── Shake animation on action_error (3h) ─────────────────────────────────
+   Already defined earlier as @keyframes shake + .shake class, but we
+   ensure the handler on #player-hand-ui works by re-confirming the class. */
+ 
+/* (no new CSS needed — .shake is already in the Round 2 block) */
+ 
+/* ── opponent-turn overlay positioning fix ───────────────────────────────── */
+/* The ::before pseudo needs position:relative on the parent to anchor */
+#player-hand-ui {
+  position: relative;
+}

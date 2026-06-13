@@ -49,11 +49,62 @@ document.addEventListener('DOMContentLoaded', () => {
   const zoomInBtn    = document.getElementById('zoom-in-btn');
   const zoomOutBtn   = document.getElementById('zoom-out-btn');
 
+  // ── Board zoom — uses the scroll-inner wrapper so scrolling still works ───
+  // The SVG itself keeps width/height 100% inside the inner wrapper.
+  // We scale the wrapper instead, and update the wrapper's explicit pixel
+  // dimensions so the parent container knows how large the content is.
+  const boardScrollInner = document.getElementById('board-scroll-inner');
+
   let boardZoom = 1;
   const BOARD_ZOOM_STEP = 0.25;
   const BOARD_ZOOM_MIN  = 0.5;
   const BOARD_ZOOM_MAX  = 2.5;
-  function updateBoardZoom() { boardEl.style.transform = `scale(${boardZoom})`; }
+
+  function updateBoardZoom() {
+    // Scale the inner wrapper using transform-origin top-left so the board
+    // grows toward the bottom-right (natural reading direction).
+    boardScrollInner.style.transformOrigin = 'top left';
+    boardScrollInner.style.transform = `scale(${boardZoom})`;
+    // Explicitly set the logical size of the wrapper so the parent container
+    // has real scrollable area to work with.
+    const natural = boardScrollInner.dataset.naturalWidth
+      ? Number(boardScrollInner.dataset.naturalWidth)
+      : boardScrollInner.offsetWidth;
+    const naturalH = boardScrollInner.dataset.naturalHeight
+      ? Number(boardScrollInner.dataset.naturalHeight)
+      : boardScrollInner.offsetHeight;
+    // Store natural size after first measurement
+    if (!boardScrollInner.dataset.naturalWidth) {
+      boardScrollInner.dataset.naturalWidth  = boardScrollInner.offsetWidth;
+      boardScrollInner.dataset.naturalHeight = boardScrollInner.offsetHeight;
+    }
+    // Make the wrapper physically occupy its scaled size so the parent scrollbar tracks it
+    boardScrollInner.style.width  = (Number(boardScrollInner.dataset.naturalWidth)  * boardZoom) + 'px';
+    boardScrollInner.style.height = (Number(boardScrollInner.dataset.naturalHeight) * boardZoom) + 'px';
+  }
+
+  // ── 3b. Toast notification helper ─────────────────────────────────────────
+  function showToast(text, { icon = 'ℹ️', type = 'info', duration = 3500 } = {}) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-text">${text}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('toast-out');
+      toast.addEventListener('animationend', () => toast.remove(), { once: true });
+    }, duration);
+  }
+
+  // ── 3d. Richer game log ────────────────────────────────────────────────────
+  function log(msg, type = 'system') {
+    const p = document.createElement('p');
+    p.className = `log-${type}`;
+    p.textContent = msg;
+    logEl.prepend(p);
+    // Cap log length to avoid unbounded growth
+    if (logEl.children.length > 60) logEl.lastChild.remove();
+  }
 
   // ── Game + client setup ────────────────────────────────────────────────────
   const socket      = io();
@@ -240,7 +291,9 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedCard = null;
     selectedValidMoves = [];
 
-    log('Game started!');
+    // 3c: toast on game start
+    showToast('Expedition begun! Good luck.', { icon: '🗺️', type: 'accent' });
+    log('Game started!', 'system');
   };
 
   // ── Board ──────────────────────────────────────────────────────────────────
@@ -308,7 +361,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (player) player.currentTileId = tileId;
     renderer.setPawnPosition(playerId, tileId, PAWN_COLORS[idx] || '#aaa');
     renderer.clearHighlights();
-    log(`Moved to ${tileId}`);
+
+    // 3c: toast for opponent moves only (own moves are obvious)
+    if (playerId !== client.playerId) {
+      const name = player?.name || 'Opponent';
+      showToast(`${name} moved`, { icon: '👣', type: 'info' });
+      log(`${name} moved to ${tileId}`, 'move');
+    } else {
+      log(`Moved to ${tileId}`, 'move');
+    }
   };
 
   client.onCardDisposed = () => {
@@ -325,7 +386,12 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedValidMoves = [];
     renderer.clearHighlights();
     updateTurnLabel(nextPlayerId);
-    log(`${nextPlayerName}'s turn.`);
+    log(`${nextPlayerName}'s turn.`, 'turn');
+
+    // 3c: toast only when it becomes THIS player's turn
+    if (nextPlayerId === client.playerId) {
+      showToast('Your turn!', { icon: '⚡', type: 'accent', duration: 2000 });
+    }
   };
 
   // ── Final round ────────────────────────────────────────────────────────────
@@ -333,14 +399,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const trigger = allPlayers.find(p => p.id === triggeredByPlayerId);
     const triggerName = trigger?.name || 'A player';
 
+    // 3g: Final round banner drops from top
+    if (!document.getElementById('final-round-banner')) {
+      const banner = document.createElement('div');
+      banner.id = 'final-round-banner';
+      banner.textContent = '⚑ Final Round — Someone Has Reached El Dorado';
+      document.body.appendChild(banner);
+    }
+
+    // 3c: toast for final round
+    showToast('Final round! Someone reached El Dorado.', { icon: '🏆', type: 'accent', duration: 6000 });
+
     if (client.playerId === triggeredByPlayerId) {
       const msg = '🏆 You reached El Dorado! Other players take their final turn.';
       showModal(msg);
-      log(msg);
+      log(msg, 'win');
     } else {
       const msg = `${triggerName} reached El Dorado! Take your final turn.`;
       showModal(msg);
-      log(msg);
+      log(msg, 'warn');
     }
   };
 
@@ -352,18 +429,21 @@ document.addEventListener('DOMContentLoaded', () => {
   client.onGameWon = ({ playerId }) => {
     const winner = allPlayers.find(p => p.id === playerId);
     const winnerName = winner?.name || 'Someone';
-    const msg = client.playerId === playerId
+    const isMe = client.playerId === playerId;
+    const msg = isMe
       ? '🏆 You win! El Dorado is yours!'
       : `${winnerName} wins the race to El Dorado. Game over.`;
     showModal(msg, false);
-    log(msg);
+    log(msg, 'win');
+    // 3c: toast for game over
+    showToast(msg, { icon: '🏆', type: isMe ? 'accent' : 'info', duration: 8000 });
   };
 
   // ── Reserve picker ─────────────────────────────────────────────────────────
   client.onPromptReserveChoice = ({ soldOutKey, reserveCards }) => {
     cardUI.showReservePicker(soldOutKey, reserveCards, (chosenKey) => {
       client.chooseReserveCard(soldOutKey, chosenKey);
-      log(`Added ${chosenKey.replace(/_/g, ' ')} to the market.`);
+      log(`Added ${chosenKey.replace(/_/g, ' ')} to the market.`, 'purchase');
     });
   };
 
@@ -373,7 +453,16 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedValidMoves = [];
     renderer.clearHighlights();
     exitRubblePaymentMode();
-    log(`⚠ ${message}`);
+    log(`⚠ ${message}`, 'warn');
+
+    // 3c: error toast
+    showToast(message, { icon: '⚠️', type: 'warn' });
+
+    // 3h: shake the hand area
+    const handEl = document.getElementById('player-hand-ui');
+    handEl.classList.remove('shake');
+    void handEl.offsetWidth; // force reflow to restart animation
+    handEl.classList.add('shake');
   };
 
   function selectCardForMove(instanceId) {
@@ -393,7 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const player = allPlayers.find(p => p.id === client.playerId);
     if (!player) {
-      log('Unable to select card: player state is not ready.');
+      log('Unable to select card: player state is not ready.', 'warn');
       return;
     }
 
@@ -412,9 +501,9 @@ document.addEventListener('DOMContentLoaded', () => {
       renderer.setValidMoves(moves);
 
       if (moves.length === 0) {
-        log('No valid moves available for that card.');
+        log('No valid moves available for that card.', 'warn');
       } else {
-        log(`Selected ${card.cardName || card.key}: ${moves.length} target(s) available.`);
+        log(`Selected ${card.cardName || card.key}: ${moves.length} target(s) available.`, 'system');
       }
     }
 
@@ -457,6 +546,13 @@ document.addEventListener('DOMContentLoaded', () => {
       turnBanner.classList.remove('my-turn');
     }
 
+    // 3e: "just became my turn" flash
+    turnBanner.classList.remove('just-became-my-turn');
+    void turnBanner.offsetWidth; // force reflow to restart animation
+    if (isMe) turnBanner.classList.add('just-became-my-turn');
+
+    // 3f: opponent-turn hand dimming
+    handUI.classList.toggle('opponent-turn', !isMe);
     handUI.style.borderTopColor = isMe ? color : '#555';
 
     renderPlayerLegend(currentPlayerId);
@@ -499,12 +595,6 @@ document.addEventListener('DOMContentLoaded', () => {
       row.appendChild(handCount);
       legendEl.appendChild(row);
     });
-  }
-
-  function log(msg) {
-    const p = document.createElement('p');
-    p.textContent = msg;
-    logEl.prepend(p);
   }
 
   function showModal(message, showCancel = false) {

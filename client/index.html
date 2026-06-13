@@ -75,7 +75,11 @@
           <button id="zoom-out-btn" class="zoom-btn" aria-label="Zoom out">−</button>
           <button id="zoom-in-btn" class="zoom-btn" aria-label="Zoom in">+</button>
         </div>
-        <svg id="hex-board" xmlns="http://www.w3.org/2000/svg"></svg>
+        <!-- board-scroll-inner allows the SVG to grow via transform:scale
+             while the container itself stays scrollable -->
+        <div id="board-scroll-inner">
+          <svg id="hex-board" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
       </div>
       <div id="player-hand-ui">
         <div id="hand-cards"></div>
@@ -131,6 +135,9 @@
     </div>
 
   </div>
+
+  <!-- Toast notification container (Session 3) -->
+  <div id="toast-container"></div>
 
   <script src="/shared/constants.js"></script>
   <script src="/shared/HexBoard.js"></script>
