@@ -184,7 +184,7 @@ class CardUI {
     newCards.forEach((card, i) => {
       const btn = this._makeCardButton(card);
       // Each new card enters 50ms after the previous one
-      btn.style.animationDelay = `${i * 50}ms`;
+      btn.style.animationDelay = `${i * 150}ms`;
       // Reset the delay after the animation completes so hover/state
       // transitions aren't affected by a lingering delay value
       btn.addEventListener('animationend', () => {
