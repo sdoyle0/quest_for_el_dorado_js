@@ -1504,3 +1504,36 @@ body {
 #player-hand-ui {
   position: relative;
 }
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   SESSION 4 ADDITIONS — append to the bottom of client/src/styles/main.css
+═════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 4e: Rubble committed-card name highlight ─────────────────────────────── */
+/* The card that's already paying gets a subtle pill treatment so it
+   stands out from the surrounding instruction copy. */
+.rubble-committed-card {
+  display: inline-block;
+  background: rgba(231, 76, 60, 0.15);
+  border: 1px solid rgba(231, 76, 60, 0.35);
+  border-radius: 3px;
+  padding: 0 5px;
+  color: #ffb3aa;
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+  margin-right: 2px;
+}
+
+/* ── 4e: Rubble note body text — make <strong> pop slightly ──────────────── */
+.rubble-committed-note strong {
+  color: #ffd700;
+}
+
+/* ── 4d: Ensure card-deal animation plays correctly on staggered new cards ── */
+/* The animation is already defined as @keyframes card-deal in the main block.
+   This just ensures cards start invisible before their delay fires so there's
+   no flash of fully-visible cards before the animation begins. */
+.card-btn {
+  animation-fill-mode: both;
+}

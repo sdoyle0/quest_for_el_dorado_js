@@ -5,6 +5,10 @@
 // action based on this._mode ('movement' | 'market' | 'rubble').
 // Pool membership (market selection, rubble selection) is reflected by
 // toggling CSS classes on the existing buttons — no rebuilds.
+//
+// Session 4 Polish changes:
+//   4d — Staggered card-deal entrance animation on renderHand()
+//   4e — Rubble prompt copy & live counter improvements
 
 class CardUI {
   constructor() {
@@ -172,12 +176,22 @@ class CardUI {
       if (!incomingIds.has(btn.dataset.instanceId)) btn.remove();
     }
 
-    // Add new cards
-    for (const card of cards) {
-      if (!existingIds.has(card.instanceId)) {
-        this.handEl.appendChild(this._makeCardButton(card));
-      }
-    }
+    // Collect truly new cards so we can stagger only their entrance
+    // (existing cards that are staying don't re-animate)
+    const newCards = cards.filter(c => !existingIds.has(c.instanceId));
+
+    // Add new cards — stagger their animation delay (4d)
+    newCards.forEach((card, i) => {
+      const btn = this._makeCardButton(card);
+      // Each new card enters 50ms after the previous one
+      btn.style.animationDelay = `${i * 50}ms`;
+      // Reset the delay after the animation completes so hover/state
+      // transitions aren't affected by a lingering delay value
+      btn.addEventListener('animationend', () => {
+        btn.style.animationDelay = '';
+      }, { once: true });
+      this.handEl.appendChild(btn);
+    });
 
     // Ensure DOM order matches hand order
     for (const card of cards) {
@@ -336,6 +350,8 @@ class CardUI {
     this.openMarket(totalPurchasePower);
   }
 
+  // ── Rubble confirm button sync ────────────────────────────────────────────
+
   _syncRubbleConfirmButton() {
     const btn = document.getElementById('rubble-confirm-btn');
     if (!btn) return;
@@ -345,10 +361,15 @@ class CardUI {
     btn.style.cursor  = ready ? 'pointer' : 'not-allowed';
     this._syncHandState();
 
+    // 4e: live counter update
     const counter = document.getElementById('rubble-selection-count');
     if (counter) {
-      counter.textContent = `${this._rubblePool.size} of ${this._rubbleNeeded} selected`;
-      counter.style.color = ready ? '#4cff4c' : '#ffaaaa';
+      const selected = this._rubblePool.size;
+      const needed   = this._rubbleNeeded;
+      counter.textContent = selected >= needed
+        ? `✓ ${selected} of ${needed} selected — ready!`
+        : `${selected} of ${needed} selected`;
+      counter.style.color = selected >= needed ? '#4cff4c' : '#ffaaaa';
     }
   }
 
@@ -575,29 +596,39 @@ class CardUI {
     return [...this._rubblePool.keys()];
   }
 
+  // 4e: Rubble prompt — polished copy and live counter
   _renderRubbleControls() {
     const messages = document.getElementById('hand-messages');
 
     const cardWord = this._rubbleNeeded === 1 ? 'card' : 'cards';
+
+    // Committed-card note: cleaner phrasing than before
     const nameNote = this._rubbleExcludeName
-      ? `<span class="rubble-committed-note">🔒 ${this._rubbleExcludeName} is already paying — pick ${this._rubbleNeeded} more ${cardWord} for the toll.</span>`
-      : `<span class="rubble-committed-note">Pick ${this._rubbleNeeded} ${cardWord} to pay the rubble toll.</span>`;
+      ? `<span class="rubble-committed-note">
+           <span class="rubble-committed-card">🔒 ${this._rubbleExcludeName}</span>
+           already pays — pick <strong>${this._rubbleNeeded}</strong> more ${cardWord} for the toll.
+         </span>`
+      : `<span class="rubble-committed-note">
+           Pick <strong>${this._rubbleNeeded}</strong> ${cardWord} of any type to pay the toll.
+         </span>`;
 
     messages.innerHTML = `
       <div class="rubble-prompt">
-        <div class="rubble-prompt-header">🪨 Rubble toll</div>
+        <div class="rubble-prompt-header">🪨 Pay with any cards</div>
         ${nameNote}
-        <span id="rubble-selection-count" class="rubble-selection-count">0 of ${this._rubbleNeeded} selected</span>
+        <span id="rubble-selection-count" class="rubble-selection-count">
+          0 of ${this._rubbleNeeded} selected
+        </span>
       </div>
       <div class="rubble-prompt-actions">
         <button id="rubble-confirm-btn" disabled
           style="background:#e74c3c;color:#fff;border:none;border-radius:4px;
-                 padding:.3rem .8rem;cursor:not-allowed;opacity:.4;font-size:.8rem">
+                 padding:.35rem 1rem;cursor:not-allowed;opacity:.4;font-size:.8rem;font-weight:600;">
           Cross Rubble
         </button>
         <button id="rubble-cancel-btn"
           style="background:#555;color:#fff;border:none;border-radius:4px;
-                 padding:.3rem .8rem;cursor:pointer;font-size:.8rem">
+                 padding:.35rem .8rem;cursor:pointer;font-size:.8rem">
           Cancel
         </button>
       </div>`;
