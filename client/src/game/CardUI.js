@@ -479,7 +479,10 @@ class CardUI {
     if (isReserve && !transmitterActive) {
       btn.classList.add('reserve-locked');
     } else {
-      btn.addEventListener('click', () => this._onMarketCardClicked(card));
+      btn.addEventListener('click', (e) => {
+        if (e.target.closest('.card-info-btn')) return;
+        this._onMarketCardClicked(card);
+      });
     }
 
     return btn;
