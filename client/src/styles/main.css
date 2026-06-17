@@ -385,7 +385,7 @@ body {
 
 #board-and-hand-container {
   flex: 1;
-  background: var(--ink);
+  background: #c9b070;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -1241,12 +1241,6 @@ body {
   50%       { stroke: rgba(255,238,0,0.65); stroke-width: 11; }
 }
 
-/* ── El Dorado tile special treatment ────────────────────────────────────── */
-[data-tile-id*="26_"],
-[data-tile-id*="25_-10"] {
-  filter: drop-shadow(0 0 8px rgba(255,215,0,0.4));
-}
-
 /* ── Toast notification system ───────────────────────────────────────────── */
 #toast-container {
   position: fixed;
@@ -1311,19 +1305,6 @@ body {
 #board-container {
   position: relative;
   overflow: hidden;
-}
-
-#board-container::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 30% 15% at 0% 50%, rgba(13,17,23,0.7) 0%, transparent 100%),
-    radial-gradient(ellipse 30% 15% at 100% 50%, rgba(13,17,23,0.7) 0%, transparent 100%),
-    radial-gradient(ellipse 50% 12% at 50% 0%, rgba(13,17,23,0.6) 0%, transparent 100%),
-    radial-gradient(ellipse 50% 12% at 50% 100%, rgba(13,17,23,0.6) 0%, transparent 100%);
-  z-index: 1;
 }
 
 /* Zoom controls need to sit above the board vignette */
