@@ -54,68 +54,6 @@ class HexRenderer {
     // line at screen size needs to be ~10-14 units wide here.
 
     defs.innerHTML = `
-      <!-- ── Parchment base: warm aged paper gradient ── -->
-      <linearGradient id="parchment-base" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%"   stop-color="#efe0b0" />
-        <stop offset="35%"  stop-color="#e6d498" />
-        <stop offset="70%"  stop-color="#d9c278" />
-        <stop offset="100%" stop-color="#c4a855" />
-      </linearGradient>
-
-      <!-- ── Parchment grain: feTurbulence in objectBoundingBox space ── -->
-      <!-- filterUnits="objectBoundingBox" (default) means the filter region  -->
-      <!-- covers the element. baseFrequency in this mode is normalised to     -->
-      <!-- the element's bounding box, so 0.65 ≈ ~1.5 cycles across the rect. -->
-      <filter id="parchment-grain" x="0%" y="0%" width="100%" height="100%"
-              color-interpolation-filters="sRGB">
-        <feTurbulence type="fractalNoise" baseFrequency="0.65 0.45"
-                      numOctaves="4" seed="42" stitchTiles="stitch" result="noise"/>
-        <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise"/>
-        <feBlend in="SourceGraphic" in2="grayNoise" mode="multiply" result="fibred"/>
-        <feComposite in="fibred" in2="SourceGraphic" operator="in"/>
-      </filter>
-
-      <!-- ── Age-spot blotches: coarser noise for stain patches ── -->
-      <filter id="parchment-age" x="0%" y="0%" width="100%" height="100%"
-              color-interpolation-filters="sRGB">
-        <feTurbulence type="fractalNoise" baseFrequency="0.18 0.12"
-                      numOctaves="3" seed="7" stitchTiles="stitch" result="bigNoise"/>
-        <feColorMatrix type="matrix" in="bigNoise"
-          values="0 0 0 0 0.55
-                  0 0 0 0 0.38
-                  0 0 0 0 0.10
-                  0 0 0 1.8 -0.7" result="brownTone"/>
-        <feComposite in="brownTone" in2="SourceGraphic" operator="in"/>
-      </filter>
-
-      <!-- ── Map grid lines: faint cartographic grid ── -->
-      <!-- Width/height in viewBox units (~2000 wide). 80 units ≈ visible grid. -->
-      <pattern id="map-grid" x="0" y="0" width="80" height="80"
-               patternUnits="userSpaceOnUse">
-        <path d="M 80 0 L 0 0 0 80" fill="none"
-              stroke="#8a6e30" stroke-width="0.6" opacity="1"/>
-      </pattern>
-
-      <!-- ── Diagonal hatch: secondary texture layer ── -->
-      <pattern id="map-hatch" x="0" y="0" width="28" height="28"
-               patternUnits="userSpaceOnUse">
-        <line x1="0"  y1="28" x2="28" y2="0"  stroke="#7a5e28" stroke-width="0.5" opacity="1"/>
-        <line x1="-7" y1="28" x2="21" y2="0"  stroke="#7a5e28" stroke-width="0.3" opacity="1"/>
-        <line x1="7"  y1="28" x2="35" y2="0"  stroke="#7a5e28" stroke-width="0.3" opacity="1"/>
-      </pattern>
-
-      <!-- ── Edge vignette: darkens corners/edges, scrolls WITH the SVG ── -->
-      <!-- gradientUnits="objectBoundingBox" means cx/cy/r are fractions of   -->
-      <!-- the element's bounding box — works correctly since our rect spans   -->
-      <!-- the full viewBox with explicit pixel coordinates.                   -->
-      <radialGradient id="content-vignette" cx="50%" cy="50%" r="70%"
-                      gradientUnits="objectBoundingBox">
-        <stop offset="0%"   stop-color="#c8a030" stop-opacity="0"    />
-        <stop offset="50%"  stop-color="#a07820" stop-opacity="0.05" />
-        <stop offset="75%"  stop-color="#7a5010" stop-opacity="0.30" />
-        <stop offset="100%" stop-color="#3a2005" stop-opacity="0.65" />
-      </radialGradient>
-
       <!-- ── Per-tile face light (top-left bright spot) ── -->
       <radialGradient id="hex-face-light" cx="35%" cy="30%" r="70%">
         <stop offset="0%"   stop-color="rgba(255,255,255,0.22)"/>
@@ -183,37 +121,6 @@ class HexRenderer {
       r.setAttribute('pointer-events', 'none');
       return r;
     };
-
-    // Layer 1: warm parchment base gradient
-    this.svg.appendChild(base('url(#parchment-base)'));
-
-    // Layer 2: organic paper-fibre noise (feTurbulence multiply blend)
-    // Rendered at 35% opacity so the base colour shows through warmly
-    const grainRect = base('#d4b870', 'url(#parchment-grain)');
-    grainRect.setAttribute('opacity', '0.35');
-    this.svg.appendChild(grainRect);
-
-    // Layer 3: larger age-spot blotches at low opacity
-    const ageRect = base('#c8a448', 'url(#parchment-age)');
-    ageRect.setAttribute('opacity', '0.22');
-    this.svg.appendChild(ageRect);
-
-    // Layer 4: cartographic grid (very faint — just visible at normal zoom)
-    const gridRect = base('url(#map-grid)');
-    gridRect.setAttribute('opacity', '0.28');
-    this.svg.appendChild(gridRect);
-
-    // Layer 5: diagonal hatch (even fainter — gives the paper a woven feel)
-    const hatchRect = base('url(#map-hatch)');
-    hatchRect.setAttribute('opacity', '0.10');
-    this.svg.appendChild(hatchRect);
-
-    // Layer 6: edge vignette — must use vx/vy/vw/vh (same as all other rects).
-    // SVG rect percentage dimensions are relative to the viewport, NOT viewBox,
-    // so "100%" would render a tiny box. Use explicit coordinates.
-    const vigRect = base('url(#content-vignette)');
-    vigRect.setAttribute('pointer-events', 'none');
-    this.svg.appendChild(vigRect);
 
     // ── Tiles ─────────────────────────────────────────────────────────────────
     const ORDER = { start: 0, jungle: 1, water: 1, village: 1, mountain: 1, rubble: 2, camp: 2, el_dorado: 3 };

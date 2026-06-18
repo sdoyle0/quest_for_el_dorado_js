@@ -256,24 +256,21 @@ class CardUI {
     const oneTimeLine = card.oneTimeUse
       ? `<div class="card-onetime-line">❌</div>` : '';
 
+    const cardImage = `<img src="/shared/images/${card.key}.png" alt="${card.cardName}">`;
+
     const fullDesc = this._specialFullDescription(card.specialEffect);
     const infoBtn  = fullDesc
       ? `<span class="card-info-btn" data-effect="${card.specialEffect}" title="Details">ℹ️</span>` : '';
 
-    const costCorner = card.cost > 0
-      ? `<span class="card-cost-corner">💰 ${card.cost}</span>` : '';
-
     btn.innerHTML = `
       ${infoBtn}
       <div class="card-header-strip">
-        <span class="card-name">${card.cardName || card.key}</span>
-        ${costCorner}
+        <span class="card-name">${card.cardName}</span>
+        ${movesLine}
       </div>
       <div class="card-body-area">
-        ${movesLine}
-        ${effectLine}
+        ${cardImage}
         ${oneTimeLine}
-        ${goldBadge}
       </div>`;
 
     return btn;
@@ -459,6 +456,8 @@ class CardUI {
     const oneTimeLine = card.oneTimeUse
       ? `<div class="card-onetime-line">❌</div>` : '';
 
+    const cardImage = card.image ? `<img src="/client/src/images${card.key}.png" alt="${card.cardName}">` : '';
+
     const fullDesc = this._specialFullDescription(card.specialEffect);
     const infoBtn  = fullDesc
       ? `<span class="card-info-btn" data-effect="${card.specialEffect}" title="Details">ℹ️</span>` : '';
@@ -470,6 +469,7 @@ class CardUI {
         <span class="card-cost-corner">💰 ${card.cost}</span>
       </div>
       <div class="card-body-area">
+        ${cardImage}
         ${movesLine}
         ${effectLine}
         ${oneTimeLine}

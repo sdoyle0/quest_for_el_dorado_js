@@ -23,7 +23,7 @@ const CARD_COLORS = {
 const CARD_DEFINITIONS = [
 
   // ── GREEN (Jungle movement) ────────────────────────────────────────────────
-  { key:'explorer',      cardName:'Explorer',      color:'green',  cost:0, oneTimeUse:false, specialEffect:'none',         movementTerrain:'jungle',  movementTotal:1 },
+  { key:'explorer',      cardName:'Explorer',       color:'green',  cost:0, oneTimeUse:false, specialEffect:'none',         movementTerrain:'jungle',  movementTotal:1 },
   { key:'scout',         cardName:'Scout',          color:'green',  cost:1, oneTimeUse:false, specialEffect:'none',         movementTerrain:'jungle',  movementTotal:2 },
   { key:'trailblazer',   cardName:'Trailblazer',    color:'green',  cost:3, oneTimeUse:false, specialEffect:'none',         movementTerrain:'jungle',  movementTotal:3 },
   { key:'pioneer',       cardName:'Pioneer',        color:'green',  cost:5, oneTimeUse:false, specialEffect:'none',         movementTerrain:'jungle',  movementTotal:5 },
