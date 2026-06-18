@@ -714,7 +714,8 @@ body {
   justify-content: center;
   align-items: center;
   gap: 3px;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
+  white-space: nowrap;
 }
 .card-terrain-pip {
   width: 12px;
@@ -736,9 +737,13 @@ body {
   align-self: flex-start;
 }
 .card-onetime-line {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
   font-size: 1.1rem;
-  opacity: 0.7;
-  margin-top: auto;
+  background-color: #ffffffaa;
+  border-radius: 8px;
+  padding: 3px;
 }
 .card-effect-line {
   font-size: 0.65rem;
@@ -799,20 +804,12 @@ body {
 /* ── Card info button ─────────────────────────────────────────────────────── */
 .card-info-btn {
   position: absolute;
-  bottom: 4px;
-  right: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  bottom: 10px;
+  right: 10px;
   cursor: pointer;
-  font-size: 0.6rem;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: rgba(255,255,255,0.7);
-  transition: transform 0.15s, background 0.15s;
+  font-size: 21px;
+  border-radius: 8px;
+  overflow: hidden;
   z-index: 2;
 }
 .card-info-btn:hover {
