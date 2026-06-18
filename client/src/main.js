@@ -620,6 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const panel = document.createElement('div');
     panel.id = 'debug-panel';
     panel.innerHTML = `
+      <button id="debug-toggle-btn" title="Minimize debug panel">—</button>
       <div class="debug-row">
         <input id="debug-hand-input" placeholder="explorer,scout,transmitter" />
         <button id="debug-set-hand-btn">Set Hand</button>
@@ -638,6 +639,14 @@ document.addEventListener('DOMContentLoaded', () => {
         <button id="debug-btn">Debug State</button>
       </div>`;
     document.getElementById('game-screen').appendChild(panel);
+
+    // ── Toggle collapse ──────────────────────────────────────────────────────
+    const toggleBtn = document.getElementById('debug-toggle-btn');
+    toggleBtn.addEventListener('click', () => {
+      const collapsed = panel.classList.toggle('collapsed');
+      toggleBtn.textContent = collapsed ? '▲' : '—';
+      toggleBtn.title = collapsed ? 'Expand debug panel' : 'Minimize debug panel';
+    });
 
     document.getElementById('debug-set-hand-btn').addEventListener('click', () => {
       const val = document.getElementById('debug-hand-input').value.trim();

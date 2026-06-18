@@ -1114,11 +1114,35 @@ body {
 /* ─────────────────────────────────────────────────────────────────────────────
    DEBUG PANEL
 ───────────────────────────────────────────────────────────────────────────── */
+#debug-toggle-btn {
+  position: absolute;
+  top: 0;
+  right: -30px;
+  background: rgba(192,57,43,0.8);
+  border: 1px solid #c0392b;
+  border-radius: 0 var(--radius-md) 0 var(--radius-sm);
+  color: #e74c3c;
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-family: 'Inter', sans-serif;
+  padding: 2px 6px;
+  line-height: 1.4;
+  transition: background 0.15s;
+}
+#debug-toggle-btn:hover { background: rgba(192,57,43,1); color: #fff; }
+
+#debug-panel.collapsed .debug-row,
+#debug-panel.collapsed > div:last-child { display: none; }
+
+#debug-panel.collapsed {
+  padding: 0;
+}
+
 #debug-panel {
   display: none;
   position: fixed;
-  top: 25px;
-  right: 228px;
+  top: 50px;
+  left: 5px;
   background: rgba(8,8,20,0.95);
   border: 1px solid #c0392b;
   border-radius: var(--radius-md);
@@ -1464,6 +1488,7 @@ body {
  
 /* The SVG fills its wrapper at natural size; JS controls the wrapper's size */
 #hex-board {
+  background-color: #00000085;
   width: 100%;
   height: 100%;
   display: block;
