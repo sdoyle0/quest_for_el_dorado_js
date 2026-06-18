@@ -75,8 +75,6 @@
           <button id="zoom-out-btn" class="zoom-btn" aria-label="Zoom out">−</button>
           <button id="zoom-in-btn" class="zoom-btn" aria-label="Zoom in">+</button>
         </div>
-        <!-- board-scroll-inner allows the SVG to grow via transform:scale
-             while the container itself stays scrollable -->
         <div id="board-scroll-inner">
           <svg id="hex-board" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
@@ -101,7 +99,25 @@
         </div>
       </div>
       <div id="player-legend"></div>
-      <div id="game-log"></div>
+
+      <!-- ── Expedition Journal log panel ── -->
+      <div id="journal-label">
+        <span>Field Notes</span>
+      </div>
+
+      <div id="game-log">
+        <!-- Compass rose watermark -->
+        <svg id="journal-compass" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <polygon points="16,2 18,14 16,16 14,14" fill="#5a3008"/>
+          <polygon points="16,30 18,18 16,16 14,18" fill="#5a3008"/>
+          <polygon points="2,16 14,14 16,16 14,18" fill="#5a3008"/>
+          <polygon points="30,16 18,14 16,16 18,18" fill="#5a3008"/>
+          <circle cx="16" cy="16" r="2" fill="#5a3008"/>
+        </svg>
+
+        <!-- Scrollable log entries live here, written by main.js -->
+        <div id="log-scroll"></div>
+      </div>
     </div>
 
     <!-- Card market overlay -->
@@ -136,7 +152,7 @@
 
   </div>
 
-  <!-- Toast notification container (Session 3) -->
+  <!-- Toast notification container -->
   <div id="toast-container"></div>
 
   <script src="/shared/constants.js"></script>
