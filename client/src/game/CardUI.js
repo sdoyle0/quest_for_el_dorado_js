@@ -236,44 +236,7 @@ class CardUI {
   // Two-tone frame: a header strip + a body area, both themed by terrain type.
 
   _makeCardButton(card) {
-    const btn = document.createElement('button');
-    btn.className = `card-btn terrain-${card.movementTerrain || 'empty'}`;
-    btn.dataset.instanceId = card.instanceId;
-
-    const terrainIcon = this._terrainIcon(card.movementTerrain);
-    const movesLine = card.movementTotal > 0
-      ? `<div class="card-stat-line">
-           <span>${terrainIcon} ${card.movementTotal}</span>
-         </div>` : '';
-
-    const goldBadge = card.purchasingPower
-      ? `<span class="card-gold-badge">💰 ${card.purchasingPower}</span>` : '';
-
-    const effectDesc  = this._specialDescription(card.specialEffect);
-    const effectLine  = effectDesc
-      ? `<div class="card-effect-line">${effectDesc}</div>` : '';
-
-    const oneTimeLine = card.oneTimeUse
-      ? `<div class="card-onetime-line">❌</div>` : '';
-
-    const cardImage = `<img src="/shared/images/${card.key}.png" alt="${card.cardName}">`;
-
-    const fullDesc = this._specialFullDescription(card.specialEffect);
-    const infoBtn  = fullDesc
-      ? `<span class="card-info-btn" data-effect="${card.specialEffect}" title="Details">ℹ️</span>` : '';
-
-    btn.innerHTML = `
-      ${infoBtn}
-      <div class="card-header-strip">
-        <span class="card-name">${card.cardName}</span>
-        ${movesLine}
-      </div>
-      <div class="card-body-area">
-        ${cardImage}
-        ${oneTimeLine}
-      </div>`;
-
-    return btn;
+    return this._makeCardShared(card, false, false, false);
   }
 
   _terrainIcon(terrain) {
@@ -386,6 +349,8 @@ class CardUI {
 
     const isTransmitter = this._transmitterBonus > 0;
 
+    this.shopEl.classList.toggle('transmitter-active', isTransmitter);
+
     const shopAvailable = document.createElement('div');
     shopAvailable.className = 'market-available-section';
 
@@ -430,17 +395,11 @@ class CardUI {
     if (this._mode === 'market') this._updateAffordability();
   }
 
-  _makeMarketCardEl(card, isReserve, transmitterActive = false) {
-    if (!card || card.remaining === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'market-card empty';
-      empty.textContent = card ? `${card.cardName} (sold out)` : '—';
-      return empty;
-    }
-
+  _makeCardShared(card, isMarket, isReserve, transmitterActive) {
     const btn = document.createElement('button');
-    btn.className = `market-card terrain-${card.movementTerrain || 'empty'}`;
+    btn.className = `card-btn terrain-${card.movementTerrain || 'empty'}`;
     if (isReserve) btn.classList.add('market-reserve');
+    btn.dataset.instanceId = card.instanceId;
     btn.dataset.cardKey = card.key;
 
     const terrainIcon = this._terrainIcon(card.movementTerrain);
@@ -456,9 +415,10 @@ class CardUI {
     const oneTimeLine = card.oneTimeUse
       ? `<div class="card-onetime-line">❌</div>` : '';
 
-    const cardImage = card.image ? `<img src="/client/src/images${card.key}.png" alt="${card.cardName}">` : '';
+    const cardImage = `<img src="/shared/images/${card.key}.png" alt="${card.cardName}">`;
 
     const fullDesc = this._specialFullDescription(card.specialEffect);
+
     const infoBtn  = fullDesc
       ? `<span class="card-info-btn" data-effect="${card.specialEffect}" title="Details">ℹ️</span>` : '';
 
@@ -466,26 +426,53 @@ class CardUI {
       ${infoBtn}
       <div class="card-header-strip">
         <span class="card-name">${card.cardName}</span>
-        <span class="card-cost-corner">💰 ${card.cost}</span>
+        ${movesLine}
       </div>
       <div class="card-body-area">
         ${cardImage}
-        ${movesLine}
-        ${effectLine}
         ${oneTimeLine}
-        <span class="card-remaining">×${card.remaining} left</span>
       </div>`;
 
-    if (isReserve && !transmitterActive) {
-      btn.classList.add('reserve-locked');
-    } else {
-      btn.addEventListener('click', (e) => {
-        if (e.target.closest('.card-info-btn')) return;
-        this._onMarketCardClicked(card);
-      });
+    if (isMarket) {
+      btn.classList.add('market-card');
+
+      const wrapperElem = document.createElement('div');
+      wrapperElem.className = 'market-card-wrapper';
+      
+      const costElem = document.createElement('div');
+      costElem.className = 'cost-label';
+      costElem.textContent = `💰 ${card.cost}`;
+
+      const remainingElem = document.createElement('div');
+      remainingElem.className = 'cards-remaining';
+      remainingElem.textContent = `×${card.remaining} left`;
+
+      const marketCardInfo = document.createElement('div');
+      marketCardInfo.className = 'market-card-info';
+      marketCardInfo.appendChild(costElem);
+      marketCardInfo.appendChild(remainingElem);
+
+      wrapperElem.appendChild(marketCardInfo);
+      wrapperElem.appendChild(btn);
+
+      if (isReserve && !transmitterActive) {
+        btn.classList.add('reserve-locked');
+      } else {
+        btn.addEventListener('click', (e) => {
+          if (e.target.closest('.card-info-btn')) return;
+          this._onMarketCardClicked(card);
+        });
+      }
+
+      return wrapperElem;
     }
 
     return btn;
+
+  }
+
+  _makeMarketCardEl(card, isReserve, transmitterActive = false) {
+    return this._makeCardShared(card, true, isReserve, transmitterActive);
   }
 
   _onMarketCardClicked(card) {
@@ -519,13 +506,13 @@ class CardUI {
 
   _updateAffordability() {
     const power = this._currentPurchasePower();
-    this.shopEl.querySelectorAll('.market-card:not(.empty):not(.reserve-locked)').forEach(btn => {
-      const costEl = btn.querySelector('.card-cost-corner');
+    this.shopEl.querySelectorAll('.market-card-wrapper:not(.empty):not(.reserve-locked)').forEach(wrapper => {
+      const costEl = wrapper.querySelector('.cost-label');
       if (!costEl) return;
       const cost = parseFloat(costEl.textContent.replace(/[^0-9.]/g, ''));
       const affordable = power >= cost;
-      btn.classList.toggle('cant-afford', !affordable);
-      btn.classList.toggle('can-afford', affordable);
+      wrapper.classList.toggle('cant-afford', !affordable);
+      wrapper.classList.toggle('can-afford', affordable);
     });
   }
 
