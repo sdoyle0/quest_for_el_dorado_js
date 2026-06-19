@@ -39,7 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Game UI refs ───────────────────────────────────────────────────────────
   const playerLabel  = document.getElementById('current-player-label');
-  const turnBannerSub= document.getElementById('turn-banner-sub');
   const turnBanner   = document.getElementById('turn-banner');
   const turnDot      = document.getElementById('turn-color-dot');
   const legendEl     = document.getElementById('player-legend');
@@ -527,14 +526,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const color = PAWN_COLORS[idx] || '#aaa';
 
     playerLabel.textContent = isMe ? '▶ Your turn' : `${p?.name || '?'}'s turn`;
-
-    // Sub-label: hand size for the active player
-    if (turnBannerSub) {
-      const handSz = p?.handSize ?? localHand.length;
-      turnBannerSub.textContent = isMe
-        ? `${localHand.length} card${localHand.length !== 1 ? 's' : ''} in hand`
-        : `${handSz} card${handSz !== 1 ? 's' : ''} in hand`;
-    }
 
     turnDot.style.background = color;
     turnBanner.style.color = color;
