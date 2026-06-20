@@ -27,6 +27,7 @@ class CardUI {
     // ── Mode ────────────────────────────────────────────────────────────────
     // 'movement' | 'market' | 'rubble'
     this._mode = 'movement';
+    this._marketView = 'shop'; // 'shop' | 'reserve' (only relevant when _mode is 'market')
 
     // ── Shared state ────────────────────────────────────────────────────────
     this._currentHand      = [];
@@ -106,6 +107,8 @@ class CardUI {
     document.getElementById('open-market-btn').addEventListener('click', () => this.openMarket());
     document.getElementById('discard-btn').addEventListener('click', () => this.onDiscardClicked?.());
     document.getElementById('cancel-purchase-btn').addEventListener('click', () => this.closeMarket());
+    this._getMarketShopButton().addEventListener('click', () => this._changeMarketView(false));
+    this._getMarketReserveButton().addEventListener('click', () => this._changeMarketView(true));
   }
 
   // ── Single delegated click handler on #hand-cards ────────────────────────
@@ -288,6 +291,10 @@ class CardUI {
     this._syncHandState();
   }
 
+  _setMarketView(isReserve) {
+    this._marketView = isReserve ? 'reserve' : 'shop';
+  }
+
   // ── Market open / close ──────────────────────────────────────────────────
 
   openMarket(transmitterBonus = 0) {
@@ -295,6 +302,7 @@ class CardUI {
     this._purchasePool.clear();
     this.marketEl.classList.remove('hidden');
     this._setMode('market');
+    this._changeMarketView(false);
     if (this._lastMarket) this.renderMarket(this._lastMarket);
     this._updatePurchaseTotal();
   }
@@ -308,6 +316,24 @@ class CardUI {
 
   openMarketWithBonus(totalPurchasePower) {
     this.openMarket(totalPurchasePower);
+  }
+
+  _changeMarketView(isReserve) {
+    if (this._marketView === (isReserve ? 'reserve' : 'shop')) return;
+    
+    this._setMarketView(isReserve);
+    this._getMarketShopButton().classList.toggle('active', !isReserve);
+    this._getMarketReserveButton().classList.toggle('active', isReserve);
+
+    this.shopEl.classList.toggle('show-reserve', isReserve);
+  }
+
+  _getMarketShopButton() {
+    return document.getElementById('marketShopButton');
+  }
+
+  _getMarketReserveButton() {
+    return document.getElementById('marketReserveButton');
   }
 
   // ── Rubble confirm button sync ────────────────────────────────────────────
@@ -353,11 +379,6 @@ class CardUI {
 
     const shopAvailable = document.createElement('div');
     shopAvailable.className = 'market-available-section';
-
-    const shopHeader = document.createElement('div');
-    shopHeader.className = 'market-section-header';
-    shopHeader.textContent = 'Shop';
-    shopAvailable.appendChild(shopHeader);
 
     const shopRow = document.createElement('div');
     shopRow.className = 'market-row';

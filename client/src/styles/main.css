@@ -1064,12 +1064,26 @@ body {
   margin-bottom: 0.5rem;
 }
 
-#market-header > span:first-child {
+.market-tab {
   font-family: 'Cinzel', serif;
   font-size: 0.8rem;
+  font-weight: 600;
   letter-spacing: 0.12em;
   color: var(--gold-mid);
   text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--gold-mid);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  margin-right: 10px;
+  padding: 5px;
+}
+
+.market-tab.active {
+  background: var(--gold-mid);
+  color: black;
+  border-color: var(--gold-bright);
+
 }
 
 #purchase-total {
@@ -1077,6 +1091,8 @@ body {
   font-size: 0.85rem;
   color: var(--gold-bright);
   font-weight: 600;
+  margin-left: auto;
+  margin-right: 20px;
 }
 
 #cancel-purchase-btn {
@@ -1106,6 +1122,7 @@ body {
   flex-direction: row;
   gap: 0.75rem;
   flex-wrap: wrap;
+  max-width: 775px;
 }
 
 .market-section-header {
@@ -1122,7 +1139,6 @@ body {
 .market-reserve-header { color: var(--text-dim); }
 .market-available-section { 
   flex: 1 1 0;
-  max-width: 460px;
 }
 .market-reserve-section {
   border-left: 1px solid var(--border);
@@ -1132,6 +1148,21 @@ body {
   max-width: 920px;
   background-color: rgba(0,0,0,0.15);
   border-radius: 0 0 0 var(--radius-sm);
+}
+
+#shop-slots:not(.show-reserve) .market-reserve-section {
+  display: none;
+}
+
+#shop-slots.show-reserve .market-available-section {
+  display: none;
+}
+
+.market-card-info {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px;
+    margin-bottom: 5px;
 }
 
 /* ── Market cards ─────────────────────────────────────────────────────────── */
@@ -1144,7 +1175,6 @@ body {
   border: none;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  cursor: pointer;
   display: flex;
   flex-direction: column;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4);
@@ -1167,10 +1197,11 @@ body {
   border: 1px dashed var(--border);
   border-radius: var(--radius-sm);
 }
-.market-reserve-section .market-card { opacity: 0.75; }
 .market-card.reserve-locked { cursor: not-allowed; }
 .market-card.reserve-locked .card-info-btn,
-.market-card-wrapper.cant-afford .card-info-btn { opacity: 1 !important; filter: none !important; }
+
+.market-card-wrapper { cursor: pointer; }
+.market-card-wrapper.cant-afford { cursor: not-allowed; opacity: 0.85; }
 
 /* Affordability states */
 #shop-slots:not(.transmitter-active) .market-available-section .market-card-wrapper.can-afford {
@@ -1179,13 +1210,7 @@ body {
 #shop-slots:not(.transmitter-active) .market-available-section .market-card-wrapper.can-afford:hover {
   box-shadow: 0 0 0 2px #6aef6a, 0 4px 14px rgba(58,223,58,0.3);
 }
-#shop-slots:not(.transmitter-active) .market-available-section .market-card-wrapper.cant-afford {
-  cursor: not-allowed;
-  opacity: 0.85;
-}
 .market-available-section .market-card-wrapper.cant-afford:hover { opacity: 0.95; }
-#shop-slots:not(.transmitter-active) .market-reserve-section .market-card-wrapper { opacity: .5}
-#shop-slots:not(.transmitter-active) .market-reserve-section .market-card-wrapper:hover { opacity: .6}
 .card-remaining { margin-top: auto; font-size: 0.68rem; opacity: 0.7; }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -1513,19 +1538,19 @@ body {
 /* ── Market overlay — sits above the hand, never covers it ──────────────── */
 #card-market {
   position: fixed !important;
-  /* 165px = hand height. Market floats directly on top of it. */
-  bottom: 250px !important;
-  left: 0 !important;
-  /* 220px = sidebar width so market doesn't underlap it */
-  right: 220px !important;
-  width: auto !important;
+  inset: 0;
+  margin: auto;
+  width: fit-content;
+  height: fit-content;
   max-height: calc(100vh - 250px - 48px); /* viewport minus hand minus some breathing room */
+  display: flex;
+  flex-direction: column;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
   border-top: 2px solid var(--gold-dim) !important;
   border-left: 1px solid var(--border) !important;
   border-right: 1px solid var(--border) !important;
   overflow-y: auto;
-  animation: market-slide-up 0.25s cubic-bezier(0.34,1.2,0.64,1) forwards;
+  /* animation: market-slide-up 0.25s cubic-bezier(0.34,1.2,0.64,1) forwards; */
   backdrop-filter: blur(2px);
   /* Ensure it's above the board but below modals */
   z-index: 20 !important;
@@ -1717,10 +1742,4 @@ body {
    no flash of fully-visible cards before the animation begins. */
 .card-btn {
   animation-fill-mode: both;
-}
-
-.market-card-info {
-    display: flex;
-    justify-content: space-between;
-    padding: 2px 10px;
 }
