@@ -281,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderer.render(tiles);
 
     players.forEach((p, i) => {
-      if (p.currentTileId) renderer.setPawnPosition(p.id, p.currentTileId, PAWN_COLORS[i]);
+      if (p.currentTileId) renderer.setPawnPosition(p.id, p.currentTileId, i);
     });
 
     cardUI.renderMarket(market);
@@ -358,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const idx = allPlayers.findIndex(p => p.id === playerId);
     const player = allPlayers.find(p => p.id === playerId);
     if (player) player.currentTileId = tileId;
-    renderer.setPawnPosition(playerId, tileId, PAWN_COLORS[idx] || '#aaa');
+    renderer.setPawnPosition(playerId, tileId, idx >= 0 ? idx : 0);
     renderer.clearHighlights();
 
     // 3c: toast for opponent moves only (own moves are obvious)
