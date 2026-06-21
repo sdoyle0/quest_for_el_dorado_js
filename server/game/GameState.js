@@ -127,6 +127,7 @@ class GameStateManager {
         this.finalRoundTriggerPlayerIndex = this.currentPlayerIndex;
 
         if (isLastPlayerOfRound) {
+          // Last player triggered final round on their own turn — game ends now.
           this.state = GS.GAME_OVER;
           this._disposeFinishedCard(player);
           this.emit('game_won', { playerId: this.firstWinnerId });
@@ -139,7 +140,11 @@ class GameStateManager {
         });
       }
 
+      // Discard the played card, then automatically advance to the next player.
+      // We call _disposeFinishedCard first (emits card_disposed + hand_updated),
+      // then endTurn handles draw-up, turn rotation, and final-round-end check.
       this._disposeFinishedCard(player);
+      this.endTurn(playerId);
       return { ok: true };
     }
 
