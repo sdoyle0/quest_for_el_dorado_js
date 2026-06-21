@@ -196,12 +196,6 @@ class CardUI {
       this.handEl.appendChild(btn);
     });
 
-    // Ensure DOM order matches hand order
-    for (const card of cards) {
-      const btn = this.handEl.querySelector(`[data-instance-id="${CSS.escape(card.instanceId)}"]`);
-      if (btn) this.handEl.appendChild(btn);
-    }
-
     // Prune stale pool entries
     for (const id of [...this._purchasePool.keys()]) {
       if (!incomingIds.has(id)) this._purchasePool.delete(id);
