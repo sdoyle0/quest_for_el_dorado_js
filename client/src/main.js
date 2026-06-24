@@ -112,6 +112,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const cardUI      = new CardUI();
   const clientBoard = new ElDoradoHexBoard.HexBoard();
 
+  const tutorial = new Tutorial({ renderer, cardUI });
+  tutorial.onExit = () => showScreen('lobby');
+
+  const tutorialBtn = document.getElementById('tutorial-btn');
+  tutorialBtn.addEventListener('click', () => {
+    // Reuse the game screen layout (board + hand are already there).
+    // The #tutorial-screen overlay sits on top of everything.
+    showScreen('game');
+    tutorial.start();
+  });
+
   const PAWN_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12'];
   let allPlayers         = [];
   let localHand          = [];

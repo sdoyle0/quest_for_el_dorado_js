@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quest for El Dorado</title>
   <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/tutorial.css" />
 </head>
 <body>
 
@@ -39,6 +40,10 @@
           <button id="join-room-btn" class="primary-btn">Join Expedition</button>
         </div>
       </div>
+
+      <button id="tutorial-btn" class="tutorial-entry-btn">
+        📖 Learn to Play
+      </button>
 
       <p id="lobby-status" class="lobby-status"></p>
     </div>
@@ -155,12 +160,36 @@
   <!-- Toast notification container -->
   <div id="toast-container"></div>
 
+  <div id="tutorial-screen" class="hidden">
+
+    <!-- Dark backdrop — covers everything behind the spotlight hole -->
+    <div id="tutorial-backdrop"></div>
+
+    <!-- The "hole" in the backdrop that reveals the spotlighted element -->
+    <div id="tutorial-spotlight-hole"></div>
+
+    <!-- Callout box — floats near the spotlight hole -->
+    <div id="tutorial-callout">
+      <div id="tutorial-callout-step">Step 1 of 0</div>
+      <h3 id="tutorial-callout-title"></h3>
+      <p id="tutorial-callout-body"></p>
+      <div id="tutorial-callout-actions">
+        <button id="tutorial-next-btn" class="tutorial-btn-primary">Next →</button>
+      </div>
+    </div>
+
+    <!-- Skip button — always in top-right corner -->
+    <button id="tutorial-skip-btn" class="tutorial-skip">Skip tutorial ×</button>
+
+  </div>
+
   <script src="/shared/constants.js"></script>
   <script src="/shared/HexBoard.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="src/game/HexRenderer.js"></script>
   <script src="src/game/CardUI.js"></script>
   <script src="src/game/GameClient.js"></script>
+  <script src="src/game/Tutorial.js"></script>
   <script src="src/main.js"></script>
 
 </body>
