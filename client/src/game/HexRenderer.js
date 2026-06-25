@@ -43,15 +43,30 @@ class HexRenderer {
     this._defs       = null;
     this._animFrames = new Set();
 
+    // ── Zoom/pan state ────────────────────────────────────────────────────
+    // These are used by zoomToTiles() and kept in sync with the
+    // #board-scroll-inner wrapper that main.js also manipulates.
+    // We store them here so zoomToTiles() can read the current scale.
+    this._zoom = 1;
+    this._scrollInner = null; // set lazily on first use
+    this._scrollContainer = null;
+
     this._initDefs();
+  }
+
+  // ── Lazy wrapper refs ─────────────────────────────────────────────────────
+  // We can't grab these in the constructor because main.js builds the
+  // renderer before the DOM is fully wired. Grab them on first need.
+  _getScrollInner() {
+    if (!this._scrollInner) {
+      this._scrollInner = document.getElementById('board-scroll-inner');
+      this._scrollContainer = document.getElementById('board-container');
+    }
+    return this._scrollInner;
   }
 
   _initDefs() {
     const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-
-    // NOTE on pattern scale: the SVG viewBox spans ~2200×1800 units.
-    // Pattern widths/heights are in those same units, so a "10px-looking"
-    // line at screen size needs to be ~10-14 units wide here.
 
     defs.innerHTML = `
       <!-- ── Per-tile face light (top-left bright spot) ── -->
@@ -90,7 +105,7 @@ class HexRenderer {
 
     if (!tiles || tiles.length === 0) return;
 
-    let minX =  Infinity, minY =  Infinity;
+    let minX = Infinity, minY = Infinity;
     let maxX = -Infinity, maxY = -Infinity;
 
     for (const t of tiles) {
@@ -109,20 +124,6 @@ class HexRenderer {
 
     this.svg.setAttribute('viewBox', `${vx} ${vy} ${vw} ${vh}`);
 
-    const ns = 'http://www.w3.org/2000/svg';
-    const mkRect = () => document.createElementNS(ns, 'rect');
-
-    const base = (fill, filter) => {
-      const r = mkRect();
-      r.setAttribute('x', vx); r.setAttribute('y', vy);
-      r.setAttribute('width', vw); r.setAttribute('height', vh);
-      r.setAttribute('fill', fill);
-      if (filter) r.setAttribute('filter', filter);
-      r.setAttribute('pointer-events', 'none');
-      return r;
-    };
-
-    // ── Tiles ─────────────────────────────────────────────────────────────────
     const ORDER = { start: 0, jungle: 1, water: 1, village: 1, mountain: 1, rubble: 2, camp: 2, el_dorado: 3 };
     const sorted = [...tiles].sort((a, b) => (ORDER[a.terrainType] ?? 1) - (ORDER[b.terrainType] ?? 1));
 
@@ -472,10 +473,112 @@ class HexRenderer {
   }
 
   // ── Scale / zoom ─────────────────────────────────────────────────────────
+  // NOTE: The board uses a scroll-container architecture:
+  //   #board-container (overflow: auto, scrollable viewport)
+  //     └── #board-scroll-inner (CSS transform: scale, logical content size)
+  //           └── #hex-board SVG (100% fill, viewBox set by render())
+  //
+  // setScale() and zoomToTiles() both operate on the scroll-inner wrapper,
+  // keeping them consistent with the zoom buttons in main.js.
 
+  // Sync our internal _zoom state when main.js changes the zoom externally.
+  // Call this from main.js's updateBoardZoom() after setting the transform.
+  notifyZoomChanged(zoom) {
+    this._zoom = zoom;
+  }
+
+  // Legacy API — kept so any callers don't break.
+  // Delegates to the scroll-inner wrapper, just like main.js's updateBoardZoom().
   setScale(s) {
-    this.scale = Math.max(0.2, Math.min(4, Number(s) || 1));
-    this.svg.style.width  = this.scale * 100 + '%';
-    this.svg.style.height = this.scale * 100 + '%';
+    const inner = this._getScrollInner();
+    if (!inner) return;
+    // Clamp to same bounds as main.js
+    const clamped = Math.max(0.5, Math.min(2.5, Number(s) || 1));
+    this._zoom = clamped;
+    inner.style.transformOrigin = 'top left';
+    inner.style.transform = `scale(${clamped})`;
+    inner.style.width = (inner.offsetWidth / (inner._prevZoom || 1) * clamped) + 'px';
+    inner.style.height = (inner.offsetHeight / (inner._prevZoom || 1) * clamped) + 'px';
+    inner._prevZoom = clamped;
+  }
+
+  // Pan and zoom the board to frame the given tile IDs.
+  // Uses scrollIntoView on the actual SVG <g> elements — no coordinate math.
+  //
+  // For a single tile, scrolls that tile to centre of viewport.
+  // For multiple tiles, picks the tile closest to the group centroid.
+  //
+  // animate: uses smooth scroll behaviour
+  zoomToTiles(tileIds, { animate = true, maxZoom = 2.0 } = {}) {
+    if (!tileIds || tileIds.length === 0) return;
+
+    const inner = this._getScrollInner();
+    if (!inner) return;
+
+    const entries = tileIds
+      .map(id => this.tileEls.get(id))
+      .filter(Boolean);
+
+    if (entries.length === 0) return;
+
+    // ── 1. Set zoom ───────────────────────────────────────────────────────
+    if (!inner.dataset.naturalWidth) {
+      inner.dataset.naturalWidth = Math.round(inner.offsetWidth / this._zoom);
+      inner.dataset.naturalHeight = Math.round(inner.offsetHeight / this._zoom);
+    }
+    const naturalW = Number(inner.dataset.naturalWidth);
+    const naturalH = Number(inner.dataset.naturalHeight);
+
+    let targetZoom;
+    if (entries.length === 1) {
+      targetZoom = maxZoom;
+    } else {
+      const centers = entries.map(({ tile }) => this._center(tile.q, tile.r));
+      const svgW = Math.max(...centers.map(c => c.cx)) - Math.min(...centers.map(c => c.cx)) + HEX_R * 4;
+      const svgH = Math.max(...centers.map(c => c.cy)) - Math.min(...centers.map(c => c.cy)) + HEX_R * 4;
+      const vb = this.svg.viewBox.baseVal;
+      if (!vb || vb.width === 0) return;
+      const pxPerUnitX = naturalW / vb.width;
+      const pxPerUnitY = naturalH / vb.height;
+      const container = this._scrollContainer;
+      const vpW = container ? container.clientWidth : naturalW;
+      const vpH = container ? container.clientHeight : naturalH;
+      const fitX = (vpW * 0.75) / (svgW * pxPerUnitX);
+      const fitY = (vpH * 0.75) / (svgH * pxPerUnitY);
+      targetZoom = Math.min(fitX, fitY, maxZoom);
+    }
+    const clampedZoom = Math.max(0.5, Math.min(2.5, targetZoom));
+
+    inner.style.transformOrigin = 'top left';
+    inner.style.transform = `scale(${clampedZoom})`;
+    inner.style.width = (naturalW * clampedZoom) + 'px';
+    inner.style.height = (naturalH * clampedZoom) + 'px';
+    this._zoom = clampedZoom;
+
+    // ── 2. Pick the tile closest to the group centroid ────────────────────
+    const centers = entries.map(({ tile }) => this._center(tile.q, tile.r));
+    const centroidX = centers.reduce((s, c) => s + c.cx, 0) / centers.length;
+    const centroidY = centers.reduce((s, c) => s + c.cy, 0) / centers.length;
+    const closest = entries.reduce((best, entry, i) => {
+      const d = Math.hypot(centers[i].cx - centroidX, centers[i].cy - centroidY);
+      return d < best.d ? { entry, d } : best;
+    }, { entry: entries[0], d: Infinity }).entry;
+
+    // Force reflow so the browser knows the new zoomed dimensions before
+    // scrollIntoView reads layout.
+    void inner.offsetWidth;
+
+    requestAnimationFrame(() => {
+      closest.g.scrollIntoView({
+        behavior: animate ? 'smooth' : 'instant',
+        block: 'center',
+        inline: 'center',
+      });
+    });
+  }
+
+  // Convenience: zoom to a single tile
+  zoomToTile(tileId, options) {
+    return this.zoomToTiles([tileId], options);
   }
 }
