@@ -487,21 +487,6 @@ class HexRenderer {
     this._zoom = zoom;
   }
 
-  // Legacy API — kept so any callers don't break.
-  // Delegates to the scroll-inner wrapper, just like main.js's updateBoardZoom().
-  setScale(s) {
-    const inner = this._getScrollInner();
-    if (!inner) return;
-    // Clamp to same bounds as main.js
-    const clamped = Math.max(0.5, Math.min(2.5, Number(s) || 1));
-    this._zoom = clamped;
-    inner.style.transformOrigin = 'top left';
-    inner.style.transform = `scale(${clamped})`;
-    inner.style.width = (inner.offsetWidth / (inner._prevZoom || 1) * clamped) + 'px';
-    inner.style.height = (inner.offsetHeight / (inner._prevZoom || 1) * clamped) + 'px';
-    inner._prevZoom = clamped;
-  }
-
   // Pan and zoom the board to frame the given tile IDs.
   // Uses scrollIntoView on the actual SVG <g> elements — no coordinate math.
   //
