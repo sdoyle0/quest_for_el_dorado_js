@@ -52,28 +52,27 @@ const TUTORIAL_HAND = [
 class Tutorial {
   constructor({ renderer, cardUI }) {
     this.renderer = renderer;
-    this.cardUI   = cardUI;
-    this.active   = false;
-    this._step    = 0;
-    this._steps   = [];       // populated in later phases
-    this._savedCallbacks  = {}; // CardUI callbacks saved on entry, restored on exit
-    this._savedTileClick  = undefined; // renderer.onTileClick saved on entry
+    this.cardUI = cardUI;
+    this.active = false;
+    this._step = 0;
+    this._steps = [];
+    this._savedCallbacks = {};
+    this._savedTileClick = undefined;
 
     // ── Overlay element refs ───────────────────────────────────────────────
-    this._overlayEl   = document.getElementById('tutorial-screen');
-    this._backdropEl  = document.getElementById('tutorial-backdrop');
-    this._holeEl      = document.getElementById('tutorial-spotlight-hole');
-    this._calloutEl   = document.getElementById('tutorial-callout');
+    this._overlayEl = document.getElementById('tutorial-screen');
+    this._backdropEl = document.getElementById('tutorial-backdrop');
+    this._holeEl = document.getElementById('tutorial-spotlight-hole');
+    this._calloutEl = document.getElementById('tutorial-callout');
     this._stepLabelEl = document.getElementById('tutorial-callout-step');
-    this._titleEl     = document.getElementById('tutorial-callout-title');
-    this._bodyEl      = document.getElementById('tutorial-callout-body');
-    this._nextBtn     = document.getElementById('tutorial-next-btn');
-    this._skipBtn     = document.getElementById('tutorial-skip-btn');
+    this._titleEl = document.getElementById('tutorial-callout-title');
+    this._bodyEl = document.getElementById('tutorial-callout-body');
+    this._nextBtn = document.getElementById('tutorial-next-btn');
+    this._skipBtn = document.getElementById('tutorial-skip-btn');
 
     this._nextBtn.addEventListener('click', () => this._advance());
     this._skipBtn.addEventListener('click', () => this.exit());
 
-    // Build steps once — they reference this.renderer so must be done here
     this._steps = this._buildSteps();
   }
 
@@ -82,23 +81,18 @@ class Tutorial {
   start() {
     if (this.active) return;
     this.active = true;
-    this._step  = 0;
+    this._step = 0;
 
-    // Save live callbacks before we intercept anything
     this._saveCallbacks();
     this._savedTileClick = this.renderer.onTileClick;
 
     this._overlayEl.classList.remove('hidden');
 
-    // Phase 2, Task 2a: Render map if no game is running yet
     if (this.renderer.tileEls.size === 0) {
       fetch('/shared/mapData.json')
         .then(r => r.json())
         .then(data => {
           this.renderer.render(data.tiles);
-          // After fresh render the scroll-inner has no stored natural size yet.
-          // Give the browser one frame to lay out the SVG before step 1's
-          // onEnter calls zoomToTiles() (which needs offsetWidth to be real).
           requestAnimationFrame(() => this._renderStep());
         })
         .catch(() => {
@@ -114,25 +108,19 @@ class Tutorial {
     this.active = false;
     this._overlayEl.classList.add('hidden');
 
-    // Clear spotlight hole and any callout arrow classes
     this._clearSpotlight();
-
-    // Restore CardUI and renderer callbacks
     this._restoreCallbacks();
     if (this._savedTileClick !== undefined) {
       this.renderer.onTileClick = this._savedTileClick;
     }
 
-    // Remove fake pawn if present (added in Phase 3)
     const pawnEl = this.renderer.svg?.querySelector('[data-pawn="tutorial-player"]');
     if (pawnEl) pawnEl.remove();
 
-    // Clear any fake hand / market state
     this.cardUI.renderHand([]);
     this.cardUI.closeMarket();
     this.renderer.clearHighlights();
 
-    // Reset next button in case a step hid it or swapped its handler
     this._nextBtn.style.display = '';
     this._nextBtn.onclick = null;
 
@@ -153,76 +141,46 @@ class Tutorial {
   _renderStep() {
     const step = this._steps[this._step];
 
-    // Phase 0: no steps defined yet — show a neutral "no content" state
     if (!step) {
       this._stepLabelEl.textContent = `Step ${this._step + 1} of ${this._steps.length}`;
       this._titleEl.textContent = '';
-      this._bodyEl.innerHTML    = '';
+      this._bodyEl.innerHTML = '';
       this._nextBtn.textContent = 'Done ✓';
       this._clearSpotlight();
       this._centerCallout();
       return;
     }
 
-    // ── Update step counter ────────────────────────────────────────────────
     this._stepLabelEl.textContent = `Step ${this._step + 1} of ${this._steps.length}`;
-
-    // ── Update text content ────────────────────────────────────────────────
     this._titleEl.textContent = step.title || '';
-    this._bodyEl.innerHTML    = step.body  || '';
+    this._bodyEl.innerHTML = step.body || '';
 
-    // ── Next button label ──────────────────────────────────────────────────
     const isLast = this._step === this._steps.length - 1;
     this._nextBtn.textContent = step.nextLabel || (isLast ? 'Done ✓' : 'Next →');
     this._nextBtn.style.display = '';
     this._nextBtn.onclick = null;
 
-    // ── Callout always starts centered before onEnter fires. ──────────────
-    // Steps that want a spotlight position it themselves inside onEnter
-    // (after their zoom/scroll animation has settled). This prevents the
-    // callout from jumping to a stale DOM position before the board has
-    // finished panning.
+    // ── Always start centered and with no spotlight. ───────────────────────
+    // Steps that want a spotlight handle it themselves inside onEnter().
+    // The callout stays centered unless a step explicitly anchors it to a
+    // UI element via _anchorCalloutToElement(). Board-zoom steps never
+    // reposition the callout — they use the spotlight hole only for the
+    // visual indicator, letting the callout remain stable.
     this._clearSpotlight();
     this._centerCallout();
 
-    // ── Side-effects (open market, render hand, zoom board, etc.) ──────────
     step.onEnter?.();
   }
 
   // ── Spotlight helpers ─────────────────────────────────────────────────────
 
-  // Spotlight a regular DOM element by CSS selector.
-  // Should be called from onEnter() — possibly inside a setTimeout if the
-  // board needs to scroll first.
-  _spotlightElement(selector, calloutPosition = 'below') {
-    const target = document.querySelector(selector);
-    if (!target) {
-      this._clearSpotlight();
-      this._centerCallout();
-      return;
-    }
-
-    const rect    = target.getBoundingClientRect();
-    const padding = 8;
-
-    this._holeEl.style.display = 'block';
-    this._holeEl.style.top     = (rect.top    - padding) + 'px';
-    this._holeEl.style.left    = (rect.left   - padding) + 'px';
-    this._holeEl.style.width   = (rect.width  + padding * 2) + 'px';
-    this._holeEl.style.height  = (rect.height + padding * 2) + 'px';
-
-
-    // The hole's box-shadow provides the dark surround — hide backdrop to
-    // prevent double-darkening that makes the spotlight invisible.
-    this._backdropEl.style.display = 'none';
-
-    this._positionCallout(rect, calloutPosition);
-  }
-
-  // Phase 2, Task 2c: Spotlight across a group of SVG tile <g> elements.
-  // Must be called AFTER zoomToTiles() has scrolled into position — use
-  // setTimeout(..., 550) to let the smooth scroll animation settle first.
-  _spotlightTiles(tileIds, calloutPosition = 'right') {
+  // Show the spotlight hole over a group of SVG tile <g> elements, but
+  // keep the callout centered. The hole draws the player's eye to the tiles;
+  // the centered callout stays rock-steady regardless of board scroll.
+  //
+  // Call after a setTimeout(..., 550) to let zoomToTiles scroll animation
+  // settle before reading getBoundingClientRect().
+  _spotlightTiles(tileIds) {
     const rects = tileIds
       .map(id => this.renderer.tileEls.get(id)?.g)
       .filter(Boolean)
@@ -233,7 +191,6 @@ class Tutorial {
       return;
     }
 
-    // Compute the bounding union of all tile rects
     const top = Math.min(...rects.map(r => r.top));
     const left = Math.min(...rects.map(r => r.left));
     const right = Math.max(...rects.map(r => r.right));
@@ -246,71 +203,98 @@ class Tutorial {
     this._holeEl.style.width = (right - left + padding * 2) + 'px';
     this._holeEl.style.height = (bottom - top + padding * 2) + 'px';
 
-    // The hole's box-shadow creates the dark surround — hide the backdrop
-    // so they don't stack and make the highlighted area invisible.
+    // The hole's box-shadow IS the dark overlay; hide the flat backdrop so
+    // they don't stack and make the spotlight invisible.
     this._backdropEl.style.display = 'none';
 
-    this._positionCallout(
-      { top, left, right, bottom, width: right - left, height: bottom - top },
-      calloutPosition
-    );
+    // Callout stays centered — do NOT call _positionCallout here.
   }
 
-  _positionCallout(targetRect, position = 'below') {
-    const callout  = this._calloutEl;
-    callout.style.display   = 'block';
-    callout.style.transform = ''; // clear any center-callout transform
+  // Anchor the callout box to a DOM element (for UI-element steps only).
+  // This is safe to call immediately (no scroll animation to wait for)
+  // because these elements don't move when the board zooms.
+  //
+  // position: 'above' | 'below' | 'left' | 'right'
+  _anchorCalloutToElement(selector, position = 'above') {
+    const target = document.querySelector(selector);
+    if (!target) return; // fallback: stays centered
 
-    const calloutH = callout.offsetHeight || 160;
-    const calloutW = callout.offsetWidth  || 340;
-    const margin   = 16;
-    const vw       = window.innerWidth;
-    const vh       = window.innerHeight;
+    const rect = target.getBoundingClientRect();
+    const padding = 8;
+
+    // Show the spotlight hole over the element
+    this._holeEl.style.display = 'block';
+    this._holeEl.style.top = (rect.top - padding) + 'px';
+    this._holeEl.style.left = (rect.left - padding) + 'px';
+    this._holeEl.style.width = (rect.width + padding * 2) + 'px';
+    this._holeEl.style.height = (rect.height + padding * 2) + 'px';
+    this._backdropEl.style.display = 'none';
+
+    // Position the callout adjacent to the element
+    this._positionCalloutNearRect(rect, position);
+  }
+
+  // Position the callout relative to a known-stable rect.
+  // Only used for UI elements (hand, controls, market) — never for board tiles.
+  _positionCalloutNearRect(rect, position = 'above') {
+    const callout = this._calloutEl;
+    // Clear the centering transform first so offsetWidth/Height are real
+    callout.style.transform = '';
+    callout.style.top = '-9999px';
+    callout.style.left = '-9999px';
+
+    // Force a layout so offsetHeight reflects actual rendered size
+    void callout.offsetHeight;
+
+    const calloutH = callout.offsetHeight || 180;
+    const calloutW = callout.offsetWidth || 340;
+    const margin = 16;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
 
     let top, left;
 
     switch (position) {
       case 'above':
-        top  = targetRect.top - calloutH - margin;
-        left = targetRect.left + targetRect.width / 2 - calloutW / 2;
+        top = rect.top - calloutH - margin;
+        left = rect.left + rect.width / 2 - calloutW / 2;
         break;
       case 'below':
-        top  = targetRect.bottom + margin;
-        left = targetRect.left + targetRect.width / 2 - calloutW / 2;
+        top = rect.bottom + margin;
+        left = rect.left + rect.width / 2 - calloutW / 2;
         break;
       case 'left':
-        top  = targetRect.top + targetRect.height / 2 - calloutH / 2;
-        left = targetRect.left - calloutW - margin;
+        top = rect.top + rect.height / 2 - calloutH / 2;
+        left = rect.left - calloutW - margin;
         break;
       case 'right':
-        top  = targetRect.top + targetRect.height / 2 - calloutH / 2;
-        left = targetRect.right + margin;
+        top = rect.top + rect.height / 2 - calloutH / 2;
+        left = rect.right + margin;
         break;
       default:
-        top  = targetRect.bottom + margin;
-        left = targetRect.left;
+        top = rect.bottom + margin;
+        left = rect.left;
     }
 
-    // Clamp to viewport so the callout never goes off-screen
-    top  = Math.max(margin, Math.min(top,  vh - calloutH - margin));
+    top = Math.max(margin, Math.min(top, vh - calloutH - margin));
     left = Math.max(margin, Math.min(left, vw - calloutW - margin));
 
-    callout.style.top  = top  + 'px';
+    callout.style.top = top + 'px';
     callout.style.left = left + 'px';
   }
 
   _centerCallout() {
     const callout = this._calloutEl;
-    callout.style.display   = 'block';
-    callout.style.top       = '50%';
-    callout.style.left      = '50%';
+    callout.style.display = 'block';
+    callout.style.top = '50%';
+    callout.style.left = '50%';
     callout.style.transform = 'translate(-50%, -50%)';
   }
 
   _clearSpotlight() {
-    this._holeEl.style.display    = 'none';
+    this._holeEl.style.display = 'none';
     this._calloutEl.style.transform = '';
-    // Restore backdrop for non-spotlight steps
+    // Restore the flat backdrop for non-spotlight steps
     this._backdropEl.style.display = 'block';
   }
 
@@ -318,9 +302,9 @@ class Tutorial {
 
   _saveCallbacks() {
     this._savedCallbacks = {
-      onCardPlayed:     this.cardUI.onCardPlayed,
-      onMarketCard:     this.cardUI.onMarketCard,
-      onEndTurn:        this.cardUI.onEndTurn,
+      onCardPlayed: this.cardUI.onCardPlayed,
+      onMarketCard: this.cardUI.onMarketCard,
+      onEndTurn: this.cardUI.onEndTurn,
       onCancelPurchase: this.cardUI.onCancelPurchase,
       onDiscardClicked: this.cardUI.onDiscardClicked,
     };
@@ -348,7 +332,18 @@ class Tutorial {
     };
   }
 
-  // ── Phase 2: Step builder ─────────────────────────────────────────────────
+  // ── Step builder ──────────────────────────────────────────────────────────
+  //
+  // POSITIONING RULES (read before editing steps):
+  //
+  //   Board-zoom steps (zoomToTiles):
+  //     - Callout stays CENTERED (set by _renderStep before onEnter).
+  //     - Use _spotlightTiles() inside a setTimeout(..., 550) for the hole.
+  //     - Do NOT call _positionCallout / _anchorCalloutToElement.
+  //
+  //   UI-element steps (hand, controls, market buttons):
+  //     - Call _anchorCalloutToElement(selector, position) immediately in onEnter.
+  //     - These elements don't move when the board scrolls, so no timeout needed.
 
   _buildSteps() {
     const r = this.renderer;
@@ -364,7 +359,7 @@ class Tutorial {
           + 'the final round.',
         nextLabel: 'Show me the map →',
         onEnter: () => {
-          // stays centered — no spotlight needed for overview
+          // Centered callout, no spotlight — just the intro.
         },
       },
 
@@ -376,7 +371,7 @@ class Tutorial {
           + 'only forward, toward El Dorado.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.start);
-          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.start, 'right'), 550);
+          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.start), 550);
         },
       },
 
@@ -390,7 +385,7 @@ class Tutorial {
         onEnter: () => {
           const ids = [...TUTORIAL_TILE_GROUPS.finishing, ...TUTORIAL_TILE_GROUPS.elDorado];
           r.zoomToTiles(ids);
-          setTimeout(() => this._spotlightTiles(ids, 'left'), 550);
+          setTimeout(() => this._spotlightTiles(ids), 550);
         },
       },
 
@@ -403,7 +398,7 @@ class Tutorial {
           + 'through the jungle.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.jungle);
-          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.jungle, 'right'), 550);
+          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.jungle), 550);
         },
       },
 
@@ -416,7 +411,7 @@ class Tutorial {
           + '<strong>Captains</strong> from the market early pays off here.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.water);
-          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.water, 'right'), 550);
+          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.water), 550);
         },
       },
 
@@ -429,7 +424,7 @@ class Tutorial {
           + 'when spent on a purchase.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.village);
-          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.village, 'right'), 550);
+          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.village), 550);
         },
       },
 
@@ -442,7 +437,7 @@ class Tutorial {
           + 'total; a ×3 costs 3. The extras are discarded, not the movement card.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.rubble);
-          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.rubble, 'right'), 550);
+          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.rubble), 550);
         },
       },
 
@@ -454,7 +449,7 @@ class Tutorial {
           + 'around them — plan your path accordingly.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.mountain);
-          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.mountain, 'right'), 550);
+          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.mountain), 550);
         },
       },
 
@@ -467,7 +462,7 @@ class Tutorial {
           + 'you had left. Use camp tiles intentionally to purge weak starter cards.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.camp);
-          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.camp, 'right'), 550);
+          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.camp), 550);
         },
       },
 
@@ -480,7 +475,7 @@ class Tutorial {
           + 'Tiles like this appear mid-map and reward buying stronger cards early.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.more_requirements);
-          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.more_requirements, 'right'), 550);
+          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.more_requirements), 550);
         },
       },
 
@@ -492,8 +487,9 @@ class Tutorial {
           + 'from playing your first card to ending your turn.',
         nextLabel: 'Show me a turn →',
         onEnter: () => {
+          // Zoom back out to give a sense of the full journey, no spotlight.
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.start, { maxZoom: 1 });
-          // No spotlight — centered callout is the right UX here
+          // Callout stays centered.
         },
       },
 
@@ -510,9 +506,9 @@ class Tutorial {
           this.renderer.setPawnPosition('tutorial-player', '-3_3', 0);
           this.cardUI.renderHand(TUTORIAL_HAND);
           this._installTurnCallbacks();
-          this._nextBtn.style.display = 'none'; // must click a card to continue
-          // Spotlight the hand after the board pans
-          setTimeout(() => this._spotlightElement('#player-hand-ui', 'above'), 550);
+          this._nextBtn.style.display = 'none';
+          // Anchor callout to hand — safe to do immediately, hand doesn't move
+          this._anchorCalloutToElement('#player-hand-ui', 'above');
         },
       },
 
@@ -526,6 +522,9 @@ class Tutorial {
           this._nextBtn.style.display = 'none';
           const adjacentJungle = ['-2_3', '-2_2', '-2_1', '-2_0'];
           this.renderer.setValidMoves(adjacentJungle);
+          
+          r.zoomToTiles(adjacentJungle);
+          setTimeout(() => this._spotlightTiles(adjacentJungle), 550);
 
           const originalClick = this.renderer.onTileClick;
           this.renderer.onTileClick = (tileId) => {
@@ -536,8 +535,7 @@ class Tutorial {
               this._advance();
             }
           };
-          // Spotlight the board area after step renders
-          setTimeout(() => this._spotlightElement('#board-container', 'right'), 100);
+          // Callout stays centered — board is what the player needs to interact with.
         },
       },
 
@@ -551,7 +549,8 @@ class Tutorial {
         onEnter: () => {
           this._nextBtn.style.display = '';
           this.cardUI.onEndTurn = () => this._advance();
-          setTimeout(() => this._spotlightElement('#hand-controls', 'above'), 100);
+          // Anchor to the controls — stable position, no board movement
+          this._anchorCalloutToElement('#hand-controls', 'above');
         },
       },
 
@@ -564,11 +563,11 @@ class Tutorial {
           + '<em>will</em> reach your hand eventually.',
         onEnter: () => {
           this._nextBtn.style.display = '';
-          // No spotlight — this is conceptual, no element to point at
+          // Conceptual step, no element to point at — centered callout is correct.
         },
       },
 
-      // ── Step 16: Market intro — purchasing power ──────────────────────────
+      // ── Step 16: Market — purchasing power ───────────────────────────────
       {
         title: 'The Market — Purchasing Power',
         body: 'To buy a card, first <strong>click cards from your hand</strong> '
@@ -583,11 +582,12 @@ class Tutorial {
           this.cardUI.openMarket(0);
           this._installMarketCallbacks();
           this._nextBtn.style.display = '';
-          setTimeout(() => this._spotlightElement('#player-hand-ui', 'above'), 100);
+          // Anchor to hand — stable, market is open above it
+          this._anchorCalloutToElement('#player-hand-ui', 'above');
         },
       },
 
-      // ── Step 17: Selecting purchasing power ──────────────────────────────
+      // ── Step 17: Try clicking the Traveler ───────────────────────────────
       {
         title: 'Try It — Click the Traveler',
         body: 'Click the <strong>yellow Traveler card</strong> in your hand to '
@@ -600,12 +600,10 @@ class Tutorial {
           const originalPoolClick = this.cardUI._handleMarketPoolClick.bind(this.cardUI);
           this.cardUI._handleMarketPoolClick = (instanceId, btn) => {
             originalPoolClick(instanceId, btn);
-            // Restore and advance regardless of which card was clicked,
-            // but only after power has updated
             this.cardUI._handleMarketPoolClick = originalPoolClick;
             setTimeout(() => this._advance(), 400);
           };
-          setTimeout(() => this._spotlightElement('#player-hand-ui', 'above'), 100);
+          this._anchorCalloutToElement('#player-hand-ui', 'above');
         },
       },
 
@@ -617,7 +615,8 @@ class Tutorial {
           + 'and will cycle into your hand in a future turn.',
         onEnter: () => {
           this._nextBtn.style.display = 'none';
-          setTimeout(() => this._spotlightElement('#shop-slots', 'above'), 100);
+          // Anchor to the market cards area
+          this._anchorCalloutToElement('#shop-slots', 'above');
         },
       },
 
@@ -629,14 +628,13 @@ class Tutorial {
           + 'they only enter the market when a shop slot runs dry. '
           + 'Whenever a card sells out, the <em>buyer</em> chooses which '
           + 'reserve card replaces it. Knowing what\'s in the reserve '
-          + 'helps you plan — sell out a cheap card deliberately to '
-          + 'unlock a reserve card you need.',
+          + 'helps you plan.',
         onEnter: () => {
-          // Switch to the reserve tab so the player can see it
           this.cardUI._changeMarketView(true);
           this.cardUI.openMarket(0);
+          this.cardUI._changeMarketView(true);
           this._nextBtn.style.display = '';
-          setTimeout(() => this._spotlightElement('#shop-slots', 'above'), 100);
+          this._anchorCalloutToElement('#shop-slots', 'above');
         },
       },
 
@@ -650,7 +648,7 @@ class Tutorial {
         onEnter: () => {
           this._nextBtn.style.display = '';
           this.cardUI.closeMarket();
-          // No spotlight — centered callout for the send-off
+          // Centered send-off.
         },
       },
     ];

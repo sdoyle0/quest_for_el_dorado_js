@@ -109,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const socket      = io();
   const client      = new GameClient(socket);
   const renderer    = new HexRenderer(document.getElementById('hex-board'));
+  window.renderer = renderer; // for debugging in console
   const cardUI      = new CardUI();
   const clientBoard = new ElDoradoHexBoard.HexBoard();
 
