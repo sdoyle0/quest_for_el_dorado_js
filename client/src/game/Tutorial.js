@@ -327,6 +327,14 @@ class Tutorial {
     Object.assign(this.cardUI, this._savedCallbacks);
   }
 
+  _installTurnCallbacks() {
+    this.cardUI.onCardPlayed = (instanceId) => {
+      this.cardUI.updateSelectedCardForMovement(instanceId);
+      this._advance();
+    };
+    this.cardUI.onEndTurn = () => this._advance();
+  }
+
   // ── Phase 2: Step builder ─────────────────────────────────────────────────
 
   _buildSteps() {
@@ -470,6 +478,76 @@ class Tutorial {
         },
       },
 
+      // ── Step 10: Your hand ────────────────────────────────────────────────
+      {
+        title: 'Your Hand',
+        body: 'Each turn starts with cards in your hand. '
+          + '<strong>Green</strong> moves through jungle, '
+          + '<strong>blue</strong> through water, '
+          + '<strong>yellow</strong> through villages (and buys cards). '
+          + 'Click a card to play it.',
+        spotlightSelector: '#player-hand-ui',
+        calloutPosition: 'above',
+        onEnter: () => {
+          this.renderer.zoomToTiles(TUTORIAL_TILE_GROUPS.start);
+          this.renderer.setPawnPosition('tutorial-player', '-3_3', 0);
+          this.cardUI.renderHand(TUTORIAL_HAND);
+          this._installTurnCallbacks();
+          this._nextBtn.style.display = 'none'; // must click a card to continue
+        },
+      },
+
+      // ── Step 11: Valid moves ──────────────────────────────────────────────
+      {
+        title: 'Valid Moves',
+        body: 'Glowing tiles show where you can move with the card you played. '
+          + 'The card\'s terrain must match the tile. Click a glowing tile to move.',
+        spotlightSelector: '#board-container',
+        calloutPosition: 'right',
+        onEnter: () => {
+          this._nextBtn.style.display = 'none';
+          const adjacentJungle = ['-2_3', '-2_2', '-2_1', '-2_0'];
+          this.renderer.setValidMoves(adjacentJungle);
+
+          const originalClick = this.renderer.onTileClick;
+          this.renderer.onTileClick = (tileId) => {
+            if (adjacentJungle.includes(tileId)) {
+              this.renderer.setPawnPosition('tutorial-player', tileId, 0);
+              this.renderer.clearHighlights();
+              this.renderer.onTileClick = originalClick;
+              this._advance();
+            }
+          };
+        },
+      },
+
+      // ── Step 12: After moving ─────────────────────────────────────────────
+      {
+        title: 'After Moving',
+        body: 'If you have moves remaining your card stays active and more '
+          + 'tiles glow. When done, <strong>End Turn</strong> to draw back '
+          + 'up to 4 cards, or open the <strong>Market</strong> to buy first.',
+        spotlightSelector: '#hand-controls',
+        calloutPosition: 'above',
+        onEnter: () => {
+          this._nextBtn.style.display = '';
+          this.cardUI.onEndTurn = () => this._advance();
+        },
+      },
+
+      // ── Step 13: Deck cycling ─────────────────────────────────────────────
+      {
+        title: 'Your Deck Grows',
+        body: 'At end of turn you draw back up to 4 cards. Played cards go to '
+          + 'your <strong>discard pile</strong>. When your draw pile runs out, '
+          + 'the discard is reshuffled — so every card you buy '
+          + '<em>will</em> reach your hand.',
+        onEnter: () => {
+          this._nextBtn.style.display = '';
+          this._clearSpotlight();
+          this._centerCallout();
+        },
+      },
     ];
   }
 }
