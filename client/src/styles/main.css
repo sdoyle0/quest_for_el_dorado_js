@@ -1122,7 +1122,7 @@ body {
   flex-direction: row;
   gap: 0.75rem;
   flex-wrap: wrap;
-  max-width: 775px;
+  max-width: 900px;
 }
 
 .market-section-header {
@@ -1168,9 +1168,7 @@ body {
 /* ── Market cards ─────────────────────────────────────────────────────────── */
 .market-card {
   position: relative;
-  width: 118px;
-  min-width: 118px;
-  max-width: 118px;
+  width: 140px;
   padding: 0;
   border: none;
   border-radius: var(--radius-sm);
