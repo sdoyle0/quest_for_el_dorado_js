@@ -22,7 +22,7 @@ const TUTORIAL_TILE_GROUPS = {
   rubble: ['1_-5'],
   mountain: ['3_-7'],
   camp: ['7_-17'],
-  more_requirements: ['11_-10']
+  more_requirements: ['11_-10'],
 };
 
 // ── Phase 3: Tutorial hand fixture ───────────────────────────────────────────
@@ -175,15 +175,15 @@ class Tutorial {
     const isLast = this._step === this._steps.length - 1;
     this._nextBtn.textContent = step.nextLabel || (isLast ? 'Done ✓' : 'Next →');
     this._nextBtn.style.display = '';
-    this._nextBtn.onclick = null; // clear any step-specific override
+    this._nextBtn.onclick = null;
 
-    // ── Spotlight ──────────────────────────────────────────────────────────
-    if (step.spotlightSelector) {
-      this._spotlightElement(step.spotlightSelector, step.calloutPosition);
-    } else {
-      this._clearSpotlight();
-      this._centerCallout();
-    }
+    // ── Callout always starts centered before onEnter fires. ──────────────
+    // Steps that want a spotlight position it themselves inside onEnter
+    // (after their zoom/scroll animation has settled). This prevents the
+    // callout from jumping to a stale DOM position before the board has
+    // finished panning.
+    this._clearSpotlight();
+    this._centerCallout();
 
     // ── Side-effects (open market, render hand, zoom board, etc.) ──────────
     step.onEnter?.();
@@ -191,6 +191,9 @@ class Tutorial {
 
   // ── Spotlight helpers ─────────────────────────────────────────────────────
 
+  // Spotlight a regular DOM element by CSS selector.
+  // Should be called from onEnter() — possibly inside a setTimeout if the
+  // board needs to scroll first.
   _spotlightElement(selector, calloutPosition = 'below') {
     const target = document.querySelector(selector);
     if (!target) {
@@ -361,8 +364,7 @@ class Tutorial {
           + 'the final round.',
         nextLabel: 'Show me the map →',
         onEnter: () => {
-          this._clearSpotlight();
-          this._centerCallout();
+          // stays centered — no spotlight needed for overview
         },
       },
 
@@ -381,7 +383,7 @@ class Tutorial {
       // ── Step 3: El Dorado ─────────────────────────────────────────────────
       {
         title: 'El Dorado 🏆',
-        body: 'The green tiles with a <strong>dashed gold border</strong> and a 🏁 flag '
+        body: 'The tiles with a <strong>dashed gold border</strong> and a 🏁 flag '
           + 'are <strong>finishing tiles</strong>. The first player to land on one '
           + 'triggers the final round — every other player gets one more turn. '
           + 'Whoever is furthest along the path wins.',
@@ -434,47 +436,55 @@ class Tutorial {
       // ── Step 7: Rubble ────────────────────────────────────────────────────
       {
         title: '🪨 Rubble Tiles',
-        body: `To move onto a rubble or base camp space, use any cards from your hand. The number of symbols
-              on the space indicates the number of cards you need to play. The identity of those cards is
-              irrelevant.`,
+        body: 'To move onto a rubble tile, you play your movement card '
+          + '<em>plus</em> extra cards from your hand. The <strong>×N badge</strong> '
+          + 'shows the total cards needed — any type. A ×2 tile costs 2 cards '
+          + 'total; a ×3 costs 3. The extras are discarded, not the movement card.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.rubble);
           setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.rubble, 'right'), 550);
         },
       },
 
+      // ── Step 8: Mountain ──────────────────────────────────────────────────
       {
         title: '⛰ Mountain Tiles',
-        body: `Mountain tiles are impassable. You cannot move onto them, and you cannot play cards to move through them. You must go around.`,
+        body: 'Mountain tiles are <strong>impassable</strong>. No card can move '
+          + 'you onto one. They exist only as barriers that force you to route '
+          + 'around them — plan your path accordingly.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.mountain);
           setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.mountain, 'right'), 550);
         },
       },
 
-      // ── Step 8: Camp ──────────────────────────────────────────────────────
+      // ── Step 9: Camp ──────────────────────────────────────────────────────
       {
         title: '⛺ Camp Tiles',
-        body: `Cards you play to move onto a base camp space aren’t discarded. Instead, they are completely
-                removed from the game. They won’t be used again this game.`,
+        body: 'Landing on a camp tile <strong>permanently removes</strong> the '
+          + 'card you played from your deck — it won\'t come back. '
+          + 'Your movement also ends immediately, regardless of how many moves '
+          + 'you had left. Use camp tiles intentionally to purge weak starter cards.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.camp);
           setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.camp, 'right'), 550);
         },
       },
 
+      // ── Step 10: Greater requirements ────────────────────────────────────
       {
-        title: 'Greater requirements',
-        body: `Some tiles have greater requirements than that you'll need more powerful cards to move onto. For example, the tile 
-                highlighted here requires a card that has at least 3 jungle power. The power value of the card must be equal or higher than
-                the power of the space. Important: You cannot combine multiple cards to move onto a landscape space with high power value!`,
+        title: 'Tiles With Greater Requirements',
+        body: 'Some tiles show a <strong>×2 or ×3 badge</strong> and are not rubble — '
+          + 'they need a single card with that much movement power. '
+          + 'You <em>cannot</em> combine two weaker cards to meet a high requirement. '
+          + 'Tiles like this appear mid-map and reward buying stronger cards early.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.more_requirements);
           setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.more_requirements, 'right'), 550);
         },
       },
 
-      // ── Step 9: Transition to turn loop ──────────────────────────────────
+      // ── Step 11: Transition to turn loop ─────────────────────────────────
       {
         title: 'You Know the Map',
         body: 'Now you know what terrain you\'ll face and what card types '
@@ -482,13 +492,12 @@ class Tutorial {
           + 'from playing your first card to ending your turn.',
         nextLabel: 'Show me a turn →',
         onEnter: () => {
-          r.zoomToTiles([...TUTORIAL_TILE_GROUPS.start, ], {maxZoom: 1});
-          this._clearSpotlight();
-          this._centerCallout();
+          r.zoomToTiles(TUTORIAL_TILE_GROUPS.start, { maxZoom: 1 });
+          // No spotlight — centered callout is the right UX here
         },
       },
 
-      // ── Step 10: Your hand ────────────────────────────────────────────────
+      // ── Step 12: Your hand ────────────────────────────────────────────────
       {
         title: 'Your Hand',
         body: 'Each turn starts with cards in your hand. '
@@ -496,24 +505,23 @@ class Tutorial {
           + '<strong>blue</strong> through water, '
           + '<strong>yellow</strong> through villages (and buys cards). '
           + 'Click a card to play it.',
-        spotlightSelector: '#player-hand-ui',
-        calloutPosition: 'above',
         onEnter: () => {
           this.renderer.zoomToTiles(TUTORIAL_TILE_GROUPS.start);
           this.renderer.setPawnPosition('tutorial-player', '-3_3', 0);
           this.cardUI.renderHand(TUTORIAL_HAND);
           this._installTurnCallbacks();
           this._nextBtn.style.display = 'none'; // must click a card to continue
+          // Spotlight the hand after the board pans
+          setTimeout(() => this._spotlightElement('#player-hand-ui', 'above'), 550);
         },
       },
 
-      // ── Step 11: Valid moves ──────────────────────────────────────────────
+      // ── Step 13: Valid moves ──────────────────────────────────────────────
       {
         title: 'Valid Moves',
         body: 'Glowing tiles show where you can move with the card you played. '
-          + 'The card\'s terrain must match the tile. Click a glowing tile to move.',
-        spotlightSelector: '#board-container',
-        calloutPosition: 'right',
+          + 'The card\'s terrain must match the tile. '
+          + 'Click a glowing tile to move there.',
         onEnter: () => {
           this._nextBtn.style.display = 'none';
           const adjacentJungle = ['-2_3', '-2_2', '-2_1', '-2_0'];
@@ -528,46 +536,46 @@ class Tutorial {
               this._advance();
             }
           };
+          // Spotlight the board area after step renders
+          setTimeout(() => this._spotlightElement('#board-container', 'right'), 100);
         },
       },
 
-      // ── Step 12: After moving ─────────────────────────────────────────────
+      // ── Step 14: After moving ─────────────────────────────────────────────
       {
         title: 'After Moving',
         body: 'If you have moves remaining your card stays active and more '
-          + 'tiles glow. When done, <strong>End Turn</strong> to draw back '
-          + 'up to 4 cards, or open the <strong>Market</strong> to buy first.',
-        spotlightSelector: '#hand-controls',
-        calloutPosition: 'above',
+          + 'tiles glow. When you\'re done moving, click <strong>End Turn</strong> '
+          + 'to draw back up to 4 cards. You can also open the '
+          + '<strong>Market</strong> to buy a card before ending.',
         onEnter: () => {
           this._nextBtn.style.display = '';
           this.cardUI.onEndTurn = () => this._advance();
+          setTimeout(() => this._spotlightElement('#hand-controls', 'above'), 100);
         },
       },
 
-      // ── Step 13: Deck cycling ─────────────────────────────────────────────
+      // ── Step 15: Deck cycling ─────────────────────────────────────────────
       {
         title: 'Your Deck Grows',
         body: 'At end of turn you draw back up to 4 cards. Played cards go to '
           + 'your <strong>discard pile</strong>. When your draw pile runs out, '
           + 'the discard is reshuffled — so every card you buy '
-          + '<em>will</em> reach your hand.',
+          + '<em>will</em> reach your hand eventually.',
         onEnter: () => {
           this._nextBtn.style.display = '';
-          this._clearSpotlight();
-          this._centerCallout();
+          // No spotlight — this is conceptual, no element to point at
         },
       },
 
-      // ── Step 14: Market intro ─────────────────────────────────────────────
+      // ── Step 16: Market intro — purchasing power ──────────────────────────
       {
-        title: 'The Market',
-        body: 'During your turn, click <strong>Market</strong> to buy better '
-          + 'cards. You pay using cards from your hand as purchasing power. '
-          + 'Yellow cards are most valuable — a Traveler is worth 1 gold.',
-        spotlightSelector: '#open-market-btn',
-        calloutPosition: 'above',
-        nextLabel: 'Open the Market →',
+        title: 'The Market — Purchasing Power',
+        body: 'To buy a card, first <strong>click cards from your hand</strong> '
+          + 'to pool purchasing power. <strong>Yellow cards</strong> are most valuable: '
+          + 'a Traveler gives 1 gold. Green and blue cards each give only 0.5 gold — '
+          + 'you need two of them to equal 1 gold. '
+          + 'The cheapest cards in the market cost 1–2 gold.',
         onEnter: () => {
           const tutorialMarket = window.ElDoradoCards.buildShopState();
           this.cardUI.renderHand(TUTORIAL_HAND);
@@ -575,43 +583,64 @@ class Tutorial {
           this.cardUI.openMarket(0);
           this._installMarketCallbacks();
           this._nextBtn.style.display = '';
+          setTimeout(() => this._spotlightElement('#player-hand-ui', 'above'), 100);
         },
       },
 
-      // ── Step 15: Selecting purchasing power ───────────────────────────────
+      // ── Step 17: Selecting purchasing power ──────────────────────────────
       {
-        title: 'Adding Purchasing Power',
-        body: 'Click cards in your hand to pool their purchasing power. '
-          + 'Cards with a <strong>green outline</strong> are ones you can '
-          + 'currently afford. Try clicking the Traveler.',
-        spotlightSelector: '#player-hand-ui',
-        calloutPosition: 'above',
+        title: 'Try It — Click the Traveler',
+        body: 'Click the <strong>yellow Traveler card</strong> in your hand to '
+          + 'add its 1 gold to your purchasing power. '
+          + 'You\'ll see some market cards get a <strong>green outline</strong> — '
+          + 'those are now affordable.',
         onEnter: () => {
           this._nextBtn.style.display = 'none';
           this._installMarketCallbacks();
           const originalPoolClick = this.cardUI._handleMarketPoolClick.bind(this.cardUI);
           this.cardUI._handleMarketPoolClick = (instanceId, btn) => {
             originalPoolClick(instanceId, btn);
+            // Restore and advance regardless of which card was clicked,
+            // but only after power has updated
             this.cardUI._handleMarketPoolClick = originalPoolClick;
             setTimeout(() => this._advance(), 400);
           };
+          setTimeout(() => this._spotlightElement('#player-hand-ui', 'above'), 100);
         },
       },
 
-      // ── Step 16: Buying a card ────────────────────────────────────────────
+      // ── Step 18: Buying a card ────────────────────────────────────────────
       {
         title: 'Buying a Card',
-        body: 'Cards with a <strong>green outline</strong> are affordable. '
-          + 'Click one to buy it. It goes to your <strong>discard pile</strong> '
-          + 'and cycles into your hand in a future turn.',
-        spotlightSelector: '#shop-slots',
-        calloutPosition: 'above',
+        body: 'Cards with a <strong>green outline</strong> are within your budget. '
+          + 'Click one to buy it — it goes straight to your <strong>discard pile</strong> '
+          + 'and will cycle into your hand in a future turn.',
         onEnter: () => {
           this._nextBtn.style.display = 'none';
+          setTimeout(() => this._spotlightElement('#shop-slots', 'above'), 100);
         },
       },
 
-      // ── Step 17: Wrap-up ──────────────────────────────────────────────────
+      // ── Step 19: The Reserve ─────────────────────────────────────────────
+      {
+        title: 'The Reserve',
+        body: 'The market also has a <strong>Reserve</strong> tab. '
+          + 'These are powerful cards not yet available for purchase — '
+          + 'they only enter the market when a shop slot runs dry. '
+          + 'Whenever a card sells out, the <em>buyer</em> chooses which '
+          + 'reserve card replaces it. Knowing what\'s in the reserve '
+          + 'helps you plan — sell out a cheap card deliberately to '
+          + 'unlock a reserve card you need.',
+        onEnter: () => {
+          // Switch to the reserve tab so the player can see it
+          this.cardUI._changeMarketView(true);
+          this.cardUI.openMarket(0);
+          this._nextBtn.style.display = '';
+          setTimeout(() => this._spotlightElement('#shop-slots', 'above'), 100);
+        },
+      },
+
+      // ── Step 20: Wrap-up ──────────────────────────────────────────────────
       {
         title: 'You\'re Ready to Explore',
         body: 'Build your deck around the terrain ahead, spend yellow cards '
@@ -621,8 +650,7 @@ class Tutorial {
         onEnter: () => {
           this._nextBtn.style.display = '';
           this.cardUI.closeMarket();
-          this._clearSpotlight();
-          this._centerCallout();
+          // No spotlight — centered callout for the send-off
         },
       },
     ];
