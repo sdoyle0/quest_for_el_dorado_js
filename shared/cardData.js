@@ -8,7 +8,9 @@
 // oneTimeUse list (from multiplayer_service._is_card_type_one_time_use):
 //   GIANT_MACHETE, TREASURE_CHEST, PROP_PLANE, TRANSMITTER, COMPASS, TRAVEL_LOG
 
-const { CARD_KEYS } = require("./constants");
+const _cardDataDeps = (typeof module !== 'undefined' && module.exports)
+  ? require('./constants')
+  : window.ElDoradoConstants;
 
 // Color strings for UI rendering (from CardLibrary.gd)
 const CARD_COLORS = {
@@ -64,9 +66,9 @@ function getPurchasingPower(card) {
 // From multiplayer_service._get_player_starter_deck():
 //   3x EXPLORER, 4x TRAVELER, 1x SAILOR  (8 cards total, draw 4 per turn)
 const STARTER_DECK_TEMPLATE = [
-  { key: CARD_KEYS.EXPLORER,  count: 3 },
-  { key: CARD_KEYS.TRAVELER,  count: 4 },
-  { key: CARD_KEYS.SAILOR,    count: 1 },
+  { key: _cardDataDeps.CARD_KEYS.EXPLORER,  count: 3 },
+  { key: _cardDataDeps.CARD_KEYS.TRAVELER,  count: 4 },
+  { key: _cardDataDeps.CARD_KEYS.SAILOR,    count: 1 },
 ];
 
 function buildStarterDeck() {

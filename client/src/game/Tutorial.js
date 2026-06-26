@@ -335,6 +335,16 @@ class Tutorial {
     this.cardUI.onEndTurn = () => this._advance();
   }
 
+  _installMarketCallbacks() {
+    this.cardUI.onMarketCard = ({ cardKey }) => {
+      this.cardUI.closeMarket();
+      this._advance();
+    };
+    this.cardUI.onCancelPurchase = () => {
+      // prevent closing market during market tutorial steps
+    };
+  }
+
   // ── Phase 2: Step builder ─────────────────────────────────────────────────
 
   _buildSteps() {
@@ -544,6 +554,73 @@ class Tutorial {
           + '<em>will</em> reach your hand.',
         onEnter: () => {
           this._nextBtn.style.display = '';
+          this._clearSpotlight();
+          this._centerCallout();
+        },
+      },
+
+      // ── Step 14: Market intro ─────────────────────────────────────────────
+      {
+        title: 'The Market',
+        body: 'During your turn, click <strong>Market</strong> to buy better '
+          + 'cards. You pay using cards from your hand as purchasing power. '
+          + 'Yellow cards are most valuable — a Traveler is worth 1 gold.',
+        spotlightSelector: '#open-market-btn',
+        calloutPosition: 'above',
+        nextLabel: 'Open the Market →',
+        onEnter: () => {
+          const tutorialMarket = window.ElDoradoCards.buildShopState();
+          this.cardUI.renderHand(TUTORIAL_HAND);
+          this.cardUI.renderMarket(tutorialMarket);
+          this.cardUI.openMarket(0);
+          this._installMarketCallbacks();
+          this._nextBtn.style.display = '';
+        },
+      },
+
+      // ── Step 15: Selecting purchasing power ───────────────────────────────
+      {
+        title: 'Adding Purchasing Power',
+        body: 'Click cards in your hand to pool their purchasing power. '
+          + 'Cards with a <strong>green outline</strong> are ones you can '
+          + 'currently afford. Try clicking the Traveler.',
+        spotlightSelector: '#player-hand-ui',
+        calloutPosition: 'above',
+        onEnter: () => {
+          this._nextBtn.style.display = 'none';
+          this._installMarketCallbacks();
+          const originalPoolClick = this.cardUI._handleMarketPoolClick.bind(this.cardUI);
+          this.cardUI._handleMarketPoolClick = (instanceId, btn) => {
+            originalPoolClick(instanceId, btn);
+            this.cardUI._handleMarketPoolClick = originalPoolClick;
+            setTimeout(() => this._advance(), 400);
+          };
+        },
+      },
+
+      // ── Step 16: Buying a card ────────────────────────────────────────────
+      {
+        title: 'Buying a Card',
+        body: 'Cards with a <strong>green outline</strong> are affordable. '
+          + 'Click one to buy it. It goes to your <strong>discard pile</strong> '
+          + 'and cycles into your hand in a future turn.',
+        spotlightSelector: '#shop-slots',
+        calloutPosition: 'above',
+        onEnter: () => {
+          this._nextBtn.style.display = 'none';
+        },
+      },
+
+      // ── Step 17: Wrap-up ──────────────────────────────────────────────────
+      {
+        title: 'You\'re Ready to Explore',
+        body: 'Build your deck around the terrain ahead, spend yellow cards '
+          + 'to buy upgrades, and race your opponents to El Dorado. '
+          + 'Good luck, explorer.',
+        nextLabel: 'Start Playing →',
+        onEnter: () => {
+          this._nextBtn.style.display = '';
+          this.cardUI.closeMarket();
           this._clearSpotlight();
           this._centerCallout();
         },
