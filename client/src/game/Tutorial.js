@@ -484,7 +484,7 @@ class Tutorial {
       // ── Step 12: Your hand ────────────────────────────────────────────────
       {
         title: 'Your Hand',
-        body: 'Each turn starts with you drawing cards to your hand until you have 4 cards. Your discarded cards are reshuffled into your draw pile when it runs out. '
+        body: 'Each turn starts with you drawing cards to your hand until you have 4 cards. Cards played or used to buy stronger cards will placed in your discard pile. Your discarded cards are reshuffled into your draw pile when it runs out. '
           + '',
         onEnter: () => {
           this.renderer.zoomToTiles(TUTORIAL_TILE_GROUPS.start);
@@ -565,7 +565,7 @@ class Tutorial {
       // ── Step 16: Market — purchasing power ───────────────────────────────
       {
         title: 'The Market — Purchasing Power',
-        body: 'After opening the market, to buy a card, you can <strong>click one or more cards from your hand</strong> '
+        body: 'To use the cards in your hand to purchase stronger cards, click the market button to open the shop. To buy a card, you can <strong>click one or more cards from your hand</strong> '
           + 'to pool purchasing power. Any <strong>yellow card</strong> is worth the number of movement points shown on the card. All other cards are woth 1/2 coin each.',
         onEnter: () => {
           const tutorialMarket = window.ElDoradoCards.buildShopState();
@@ -593,7 +593,7 @@ class Tutorial {
             setTimeout(() => this._advance(), 400);
           };
           this._anchorCalloutToElement('#player-hand-ui .card-btn:nth-child(3)', 'above');
-          this._nextBtn.style.display = '';
+          this._nextBtn.style.display = 'none';
         },
       },
 
@@ -620,11 +620,36 @@ class Tutorial {
           + 'reserve card replaces it. Knowing what\'s in the reserve '
           + 'helps you plan.',
         onEnter: () => {
-          this.cardUI._changeMarketView(true);
           this.cardUI.openMarket(0);
           this.cardUI._changeMarketView(true);
-          this._nextBtn.style.display = '';
           this._anchorCalloutToElement('#shop-slots', 'above');
+        },
+      },
+
+      // ── Step 19c: Special Cards ────────────────────────────────────────────
+      {
+        title: 'Wild Cards',
+        body: 'Black cards are <strong>wild</strong> and can be used as any color. However, you have to commit them to a single color when playing; you can\'t cross multiple different types of terrain with a single move.',
+        onEnter: () => {
+          this._anchorCalloutToElement('.card-btn.terrain-wild.market-reserve', 'above');
+        },
+      },
+
+      // ── Step 19b: Special Cards ────────────────────────────────────────────
+      {
+        title: 'Special Cards',
+        body: 'Purple cards have unique, very special abilities. Each one has an clickable information button that explains what it does and how to use it.',
+        onEnter: () => {
+          this._anchorCalloutToElement('.card-btn.terrain-empty.market-reserve', 'above');
+        },
+      },
+
+      // ── Step 19c: One-Time Use cards ────────────────────────────────────────────
+      {
+        title: 'One Time Use Cards',
+        body: 'Notice some cards have a red X that means they are one time use. When you play them, they are removed from the game and will not be reshuffled into your deck.',
+        onEnter: () => {
+          this._anchorCalloutToElement('.market-reserve-section .card-onetime-line', 'above');
         },
       },
 
