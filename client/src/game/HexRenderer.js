@@ -21,7 +21,7 @@ const TERRAIN = {
   mountain: { fill: '#2a2420', hilite: '#4a3c34', shadow: '#100e0c', innerFill: '#342c26', stroke: '#1a1410', icon: '⛰',  textColor: '#9abcd4' },
   camp:     { fill: '#7a3a28', hilite: '#a85a40', shadow: '#3a1810', innerFill: '#8a4430', stroke: '#5a2818', icon: '⛺' },
   rubble:   { fill: '#5a5244', hilite: '#7a6e5e', shadow: '#2e2a22', innerFill: '#68604e', stroke: '#3e3830', icon: '🪨' },
-  start:    { fill: '#2a4080', hilite: '#4a62b0', shadow: '#101e40', innerFill: '#344c90', stroke: '#1a2e5a', icon: '🏳' },
+  start: { fill: '#781ba3', hilite: '#781ba3', shadow: '#781ba3', innerFill: '#781ba3', stroke: '#781ba3', icon: '🏳' },
   el_dorado:{ fill: '#1a6a48', hilite: '#2a9a6a', shadow: '#083a28', innerFill: '#228058', stroke: '#0e4a30', icon: '🏆' },
 };
 

@@ -16,6 +16,7 @@ const TUTORIAL_TILE_GROUPS = {
   start: ['-3_3', '-3_2', '-3_1', '-3_0'],
   elDorado: ['26_-12', '26_-11', '25_-10'],
   finishing: ['24_-10', '25_-12', '25_-11'],
+  basic: ['-1_-1', '-1_0', '0_-1'],
   jungle: ['-2_0'],
   water: ['-1_0'],
   village: ['0_-1'],
@@ -353,10 +354,9 @@ class Tutorial {
       // ── Step 1: Overview ─────────────────────────────────────────────────
       {
         title: 'The Race to El Dorado',
-        body: 'This is the map. You start at the <strong>bottom-left</strong> '
-          + 'and race toward <strong>El Dorado</strong> in the top-right. '
-          + 'Everyone shares the same map — whoever gets there first triggers '
-          + 'the final round.',
+        body: 'This is the map. You start at the <strong>starting tiles</strong> at the left'
+          + 'and race toward <strong>El Dorado</strong> on the right. '
+          + 'Everyone shares the same map — whoever gets there first triggers the final round.',
         nextLabel: 'Show me the map →',
         onEnter: () => {
           // Centered callout, no spotlight — just the intro.
@@ -380,8 +380,7 @@ class Tutorial {
         title: 'El Dorado 🏆',
         body: 'The tiles with a <strong>dashed gold border</strong> and a 🏁 flag '
           + 'are <strong>finishing tiles</strong>. The first player to land on one '
-          + 'triggers the final round — every other player gets one more turn. '
-          + 'Whoever is furthest along the path wins.',
+          + 'triggers the final round — Each player left in that round will now play their final turn. Once the round is completed, the game is over.',
         onEnter: () => {
           const ids = [...TUTORIAL_TILE_GROUPS.finishing, ...TUTORIAL_TILE_GROUPS.elDorado];
           r.zoomToTiles(ids);
@@ -389,55 +388,47 @@ class Tutorial {
         },
       },
 
-      // ── Step 4: Jungle ────────────────────────────────────────────────────
+      // ── Step 4: Tile Info ────────────────────────────────────────────────────
       {
-        title: '🌿 Jungle Tiles',
-        body: 'Most of the early map is <strong>jungle</strong>. '
-          + 'Your starting deck has <strong>green cards</strong> '
-          + '(Explorers) to cross these. Each Explorer moves you 1 space '
-          + 'through the jungle.',
+        title: 'Tile Information',
+        body: 'The path to El Dorado leads through different types of terrain: landscape (green, yellow, blue), rubble (gray), and base camp(red).<br>'
+          + ' Each hex space shows the terrain requirements you have to meet to move onto it.',
         onEnter: () => {
-          r.zoomToTiles(TUTORIAL_TILE_GROUPS.jungle);
-          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.jungle), 550);
+          r.zoomToTiles(TUTORIAL_TILE_GROUPS.basic);
+          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.basic), 550);
         },
       },
 
-      // ── Step 5: Water ─────────────────────────────────────────────────────
+      // ── Step 5: Basic Tiles ─────────────────────────────────────────────────────
       {
-        title: '🌊 Water Tiles',
-        body: 'Rivers and lakes need <strong>blue cards</strong>. '
-          + 'You start with one Sailor (1 water movement). '
-          + 'There are several river crossings mid-map — buying '
-          + '<strong>Captains</strong> from the market early pays off here.',
-        onEnter: () => {
-          r.zoomToTiles(TUTORIAL_TILE_GROUPS.water);
-          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.water), 550);
+        title: 'Basic Tiles',
+        body: '🌿 Jungle tiles require <strong>green cards</strong>.<br>'
+          + '🌊 Rivers and lakes need <strong>blue cards</strong>.<br>'
+          + '🏘️ Village tiles need <strong>yellow cards</strong>.',
+        onEnter: () => { 
+          this._spotlightTiles(TUTORIAL_TILE_GROUPS.basic);
         },
       },
 
-      // ── Step 6: Village ───────────────────────────────────────────────────
-      {
-        title: '🏘️ Village Tiles',
-        body: '<strong>Yellow cards</strong> move through villages. '
-          + 'They also double as <strong>purchasing power</strong> to buy '
-          + 'from the market. A Traveler (1 village movement) is worth 1 gold '
-          + 'when spent on a purchase.',
-        onEnter: () => {
-          r.zoomToTiles(TUTORIAL_TILE_GROUPS.village);
-          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.village), 550);
-        },
-      },
-
-      // ── Step 7: Rubble ────────────────────────────────────────────────────
+      // ── Step 6: Rubble ────────────────────────────────────────────────────
       {
         title: '🪨 Rubble Tiles',
-        body: 'To move onto a rubble tile, you play your movement card '
-          + '<em>plus</em> extra cards from your hand. The <strong>×N badge</strong> '
-          + 'shows the total cards needed — any type. A ×2 tile costs 2 cards '
-          + 'total; a ×3 costs 3. The extras are discarded, not the movement card.',
+        body: 'To move onto a rubble space, use any cards from your hand. The number of symbols'
+        + ' on the space indicates the number of cards you need to play, regardless of their power or identity.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.rubble);
           setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.rubble), 550);
+        },
+      },
+
+      // ── Step 7: Camp ──────────────────────────────────────────────────────
+      {
+        title: '⛺ Camp Tiles',
+        body: 'Cards you play to move onto a base camp space aren’t discarded. Instead, they are completely'
+          + ' removed from the game. They won’t be used again this game. Use camp tiles intentionally to purge weak starter cards.',
+        onEnter: () => {
+          r.zoomToTiles(TUTORIAL_TILE_GROUPS.camp);
+          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.camp), 550);
         },
       },
 
@@ -446,30 +437,17 @@ class Tutorial {
         title: '⛰ Mountain Tiles',
         body: 'Mountain tiles are <strong>impassable</strong>. No card can move '
           + 'you onto one. They exist only as barriers that force you to route '
-          + 'around them — plan your path accordingly.',
+          + 'around them — plan your path accordingly.<br><br><strong>Additionally:</strong> You cannot move onto any space already occupied another player.',
         onEnter: () => {
           r.zoomToTiles(TUTORIAL_TILE_GROUPS.mountain);
           setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.mountain), 550);
         },
       },
 
-      // ── Step 9: Camp ──────────────────────────────────────────────────────
-      {
-        title: '⛺ Camp Tiles',
-        body: 'Landing on a camp tile <strong>permanently removes</strong> the '
-          + 'card you played from your deck — it won\'t come back. '
-          + 'Your movement also ends immediately, regardless of how many moves '
-          + 'you had left. Use camp tiles intentionally to purge weak starter cards.',
-        onEnter: () => {
-          r.zoomToTiles(TUTORIAL_TILE_GROUPS.camp);
-          setTimeout(() => this._spotlightTiles(TUTORIAL_TILE_GROUPS.camp), 550);
-        },
-      },
-
-      // ── Step 10: Greater requirements ────────────────────────────────────
+      // ── Step 9: Greater requirements ────────────────────────────────────
       {
         title: 'Tiles With Greater Requirements',
-        body: 'Some tiles show a <strong>×2 or ×3 badge</strong> and are not rubble — '
+        body: 'Some tiles show a <strong>×2 or ×3 badge</strong>  — '
           + 'they need a single card with that much movement power. '
           + 'You <em>cannot</em> combine two weaker cards to meet a high requirement. '
           + 'Tiles like this appear mid-map and reward buying stronger cards early.',
@@ -479,7 +457,7 @@ class Tutorial {
         },
       },
 
-      // ── Step 11: Transition to turn loop ─────────────────────────────────
+      // ── Step 10: Transition to turn loop ─────────────────────────────────
       {
         title: 'You Know the Map',
         body: 'Now you know what terrain you\'ll face and what card types '
@@ -493,22 +471,40 @@ class Tutorial {
         },
       },
 
+      // ── Step 11: Starting Hand ───────────────────────────────────────────────────
+      {
+        title: 'Starting Deck',
+        body: 'Your starting deck will consist of: <br>'
+          + '<ul><li>3 Explorer cards (1 green movement each)</li>'
+          + '<li>1 Sailor card (1 water movement)</li>'
+          + '<li>4 Traveler cards (1 village movement each)</li></ul>',
+        onEnter: () => {},
+      },
+
       // ── Step 12: Your hand ────────────────────────────────────────────────
       {
         title: 'Your Hand',
-        body: 'Each turn starts with cards in your hand. '
-          + '<strong>Green</strong> moves through jungle, '
-          + '<strong>blue</strong> through water, '
-          + '<strong>yellow</strong> through villages (and buys cards). '
-          + 'Click a card to play it.',
+        body: 'Each turn starts with you drawing cards to your hand until you have 4 cards. Your discarded cards are reshuffled into your draw pile when it runs out. '
+          + '',
         onEnter: () => {
           this.renderer.zoomToTiles(TUTORIAL_TILE_GROUPS.start);
           this.renderer.setPawnPosition('tutorial-player', '-3_3', 0);
           this.cardUI.renderHand(TUTORIAL_HAND);
           this._installTurnCallbacks();
-          this._nextBtn.style.display = 'none';
           // Anchor callout to hand — safe to do immediately, hand doesn't move
           this._anchorCalloutToElement('#player-hand-ui', 'above');
+        },
+      },
+
+      // ── Step 12.1: Play a card ────────────────────────────────────────────────
+      {
+        title: 'Play a card',
+        body: 'Click a <strong>green</strong> Explorer card to play it. '
+          + '',
+        onEnter: () => {
+          this._nextBtn.style.display = 'none';
+          // Anchor callout to hand — safe to do immediately, hand doesn't move
+          this._anchorCalloutToElement('#player-hand-ui .card-btn', 'above');
         },
       },
 
@@ -520,7 +516,7 @@ class Tutorial {
           + 'Click a glowing tile to move there.',
         onEnter: () => {
           this._nextBtn.style.display = 'none';
-          const adjacentJungle = ['-2_3', '-2_2', '-2_1', '-2_0'];
+          const adjacentJungle = ['-2_2', '-2_3'];
           this.renderer.setValidMoves(adjacentJungle);
           
           r.zoomToTiles(adjacentJungle);
@@ -542,10 +538,9 @@ class Tutorial {
       // ── Step 14: After moving ─────────────────────────────────────────────
       {
         title: 'After Moving',
-        body: 'If you have moves remaining your card stays active and more '
-          + 'tiles glow. When you\'re done moving, click <strong>End Turn</strong> '
-          + 'to draw back up to 4 cards. You can also open the '
-          + '<strong>Market</strong> to buy a card before ending.',
+        body: 'If you have moves remaining your card stays active and more tiles glow to continue movement.' 
+          + ' You can continue to play cards in your hand to move, open the <strong>Market</strong> to buy a card (1 per turn) or discard cards from your hand.'
+          + ' You are not required to move every turn or use all the cards in your hand.',
         onEnter: () => {
           this._nextBtn.style.display = '';
           this.cardUI.onEndTurn = () => this._advance();
@@ -570,20 +565,14 @@ class Tutorial {
       // ── Step 16: Market — purchasing power ───────────────────────────────
       {
         title: 'The Market — Purchasing Power',
-        body: 'To buy a card, first <strong>click cards from your hand</strong> '
-          + 'to pool purchasing power. <strong>Yellow cards</strong> are most valuable: '
-          + 'a Traveler gives 1 gold. Green and blue cards each give only 0.5 gold — '
-          + 'you need two of them to equal 1 gold. '
-          + 'The cheapest cards in the market cost 1–2 gold.',
+        body: 'After opening the market, to buy a card, you can <strong>click one or more cards from your hand</strong> '
+          + 'to pool purchasing power. Any <strong>yellow card</strong> is worth the number of movement points shown on the card. All other cards are woth 1/2 coin each.',
         onEnter: () => {
           const tutorialMarket = window.ElDoradoCards.buildShopState();
           this.cardUI.renderHand(TUTORIAL_HAND);
           this.cardUI.renderMarket(tutorialMarket);
           this.cardUI.openMarket(0);
           this._installMarketCallbacks();
-          this._nextBtn.style.display = '';
-          // Anchor to hand — stable, market is open above it
-          this._anchorCalloutToElement('#player-hand-ui', 'above');
         },
       },
 
@@ -603,7 +592,8 @@ class Tutorial {
             this.cardUI._handleMarketPoolClick = originalPoolClick;
             setTimeout(() => this._advance(), 400);
           };
-          this._anchorCalloutToElement('#player-hand-ui', 'above');
+          this._anchorCalloutToElement('#player-hand-ui .card-btn:nth-child(3)', 'above');
+          this._nextBtn.style.display = '';
         },
       },
 
