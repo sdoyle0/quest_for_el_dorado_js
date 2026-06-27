@@ -14,6 +14,7 @@ class GameStateManager {
     this.selectingCardsForRubble = 0;
     this.transmitterActive = false;
     this.pendingReserveSlot = null;
+    this.hasPurchasedThisTurn = false;
     // ── Final-round tracking ──────────────────────────────────────────────────
     this.finalRoundTriggered = false;
     this.finalRoundTriggerPlayerIndex = -1;
@@ -235,6 +236,7 @@ class GameStateManager {
     this.wildCardTerrain   = null;
     this.validMoves        = [];
     this.transmitterActive = false;
+    this.hasPurchasedThisTurn = false;
 
     if (this.finalRoundTriggered && this.currentPlayerIndex === this.players.length - 1) {
       this.state = GS.GAME_OVER;
@@ -255,6 +257,10 @@ class GameStateManager {
   // handCardsUsed: array of instanceIds the client is spending from their hand
   purchaseCard(playerId, cardKey, handCardsUsed = [], cardMarket) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
+    
+    if (!this.transmitterActive && this.hasPurchasedThisTurn) {
+      return { ok: false, error: 'you can only buy one card from the market per turn' };
+    }
 
     const player = this.currentPlayer;
 
@@ -283,6 +289,7 @@ class GameStateManager {
     const purchased = cardMarket.buyCard(cardKey, fromReserve);
     if (!purchased) return { ok: false, error: 'card sold out' };
     player.discardPile.push(purchased);
+    if (!this.transmitterActive) this.hasPurchasedThisTurn = true;
 
     this.transmitterActive = false;
 
@@ -302,7 +309,7 @@ class GameStateManager {
     this.emit('card_purchased', { playerId, cardKey });
     this.emit('hand_updated',   { playerId, hand: player.hand });
     this.emit('market_updated', { market: cardMarket.getShopState() });
-    this.emit('purchase_closed',{ playerId });
+    this.emit('purchase_closed', { playerId, hasPurchasedThisTurn: this.hasPurchasedThisTurn });
     return { ok: true };
   }
 

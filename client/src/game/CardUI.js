@@ -641,4 +641,8 @@ class CardUI {
     document.getElementById('rubble-cancel-btn').onclick  = () => this._rubbleOnCancel?.();
     document.getElementById('rubble-confirm-btn').onclick = () => this._rubbleOnConfirm?.();
   }
+
+  disableMarketButton() {
+    document.getElementById('open-market-btn').disabled = true;
+  }
 }

@@ -434,7 +434,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   client.onMarketUpdated  = ({ market }) => { cardUI.renderMarket(market); cardUI.showMarket(false); };
   client.onPurchaseOpened = ({ totalPurchasePower }) => cardUI.openMarketWithBonus(totalPurchasePower);
-  client.onPurchaseClosed = () => cardUI.closeMarket();
+  client.onPurchaseClosed = ({ hasPurchasedThisTurn }) => {
+    cardUI.closeMarket();
+    if (hasPurchasedThisTurn) cardUI.disableMarketButton();
+  };
   client.onPromptRemove   = ({ count })              => showModal(`Select ${count} card(s) to permanently remove from your deck.`);
 
   client.onGameWon = ({ playerId }) => {
