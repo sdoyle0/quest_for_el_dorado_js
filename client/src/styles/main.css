@@ -1741,3 +1741,113 @@ body {
 .card-btn {
   animation-fill-mode: both;
 }
+
+
+
+
+
+
+
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   BLOCKADES
+   HUD sidebar panel + lobby toggle
+═════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Blockade status panel in HUD ─────────────────────────────────────────── */
+#blockade-status {
+  padding: 0.35rem 0.3rem 0.4rem;
+  background: rgba(13, 17, 23, 0.5);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+#blockade-status.hidden {
+  display: none;
+}
+
+#blockade-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.blockade-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  color: var(--text-mid);
+}
+
+.blockade-icon {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.blockade-label {
+  flex: 1;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+/* ── Lobby blockade toggle ────────────────────────────────────────────────── */
+.blockade-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.1rem 0 0.1rem;
+}
+
+.blockade-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--text-mid);
+  cursor: pointer;
+  user-select: none;
+}
+
+.blockade-toggle-label input[type="checkbox"] {
+  accent-color: var(--gold-mid);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.blockade-toggle-label:hover {
+  color: var(--text-bright);
+}
+
+/* ── Log: blockade entry type ─────────────────────────────────────────────── */
+#log-scroll p.log-blockade {
+  color: #c8a060;
+  font-style: italic;
+}
+
+#log-scroll p.log-blockade::before {
+  content: '🚧';
+  font-style: normal;
+  left: -18px;
+}
+
+/* ── Breakable blockade pulse animation ───────────────────────────────────── */
+@keyframes blockade-pulse {
+
+  0%,
+  100% {
+    opacity: 0.4;
+    stroke-width: 14;
+  }
+
+  50% {
+    opacity: 0.9;
+    stroke-width: 18;
+  }
+}

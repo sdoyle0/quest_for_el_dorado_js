@@ -2,23 +2,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEBUG = new URLSearchParams(window.location.search).has('debug');
 
   // ── Screen refs ────────────────────────────────────────────────────────────
-  const lobbyScreen   = document.getElementById('lobby-screen');
+  const lobbyScreen = document.getElementById('lobby-screen');
   const waitingScreen = document.getElementById('waiting-screen');
-  const gameScreen    = document.getElementById('game-screen');
+  const gameScreen = document.getElementById('game-screen');
 
   function showScreen(name) {
-    lobbyScreen.classList.toggle('active',   name === 'lobby');
+    lobbyScreen.classList.toggle('active', name === 'lobby');
     waitingScreen.classList.toggle('active', name === 'waiting');
-    gameScreen.classList.toggle('active',    name === 'game');
+    gameScreen.classList.toggle('active', name === 'game');
   }
 
   // ── Lobby UI refs ──────────────────────────────────────────────────────────
-  const nameInput      = document.getElementById('player-name-input');
-  const lobbyStatus    = document.getElementById('lobby-status');
-  const createRoomBtn  = document.getElementById('create-room-btn');
-  const joinRoomBtn    = document.getElementById('join-room-btn');
-  const roomCodeInput  = document.getElementById('room-code-input');
-  const countBtns      = document.querySelectorAll('.count-btn');
+  const nameInput = document.getElementById('player-name-input');
+  const lobbyStatus = document.getElementById('lobby-status');
+  const createRoomBtn = document.getElementById('create-room-btn');
+  const joinRoomBtn = document.getElementById('join-room-btn');
+  const roomCodeInput = document.getElementById('room-code-input');
+  const countBtns = document.querySelectorAll('.count-btn');
+  const blockadesToggle = document.getElementById('blockades-toggle');
 
   let selectedPlayerCount = 2;
   countBtns.forEach(btn => {
@@ -30,59 +31,54 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── Waiting-room UI refs ───────────────────────────────────────────────────
-  const roomCodeValue  = document.getElementById('room-code-value');
-  const copyCodeBtn    = document.getElementById('copy-code-btn');
-  const waitingSubtitle= document.getElementById('waiting-subtitle');
+  const roomCodeValue = document.getElementById('room-code-value');
+  const copyCodeBtn = document.getElementById('copy-code-btn');
+  const waitingSubtitle = document.getElementById('waiting-subtitle');
   const waitingPlayers = document.getElementById('waiting-players');
-  const startGameBtn   = document.getElementById('start-game-btn');
-  const waitingHint    = document.getElementById('waiting-hint');
+  const startGameBtn = document.getElementById('start-game-btn');
+  const waitingHint = document.getElementById('waiting-hint');
+  const waitingBlockadesNote = document.getElementById('waiting-blockades-note');
 
   // ── Game UI refs ───────────────────────────────────────────────────────────
-  const playerLabel  = document.getElementById('current-player-label');
-  const turnBanner   = document.getElementById('turn-banner');
-  const turnDot      = document.getElementById('turn-color-dot');
-  const legendEl     = document.getElementById('player-legend');
-  const logEl        = document.getElementById('log-scroll');
-  const boardEl      = document.getElementById('hex-board');
-  const handUI       = document.getElementById('player-hand-ui');
-  const zoomInBtn    = document.getElementById('zoom-in-btn');
-  const zoomOutBtn   = document.getElementById('zoom-out-btn');
+  const playerLabel = document.getElementById('current-player-label');
+  const turnBanner = document.getElementById('turn-banner');
+  const turnDot = document.getElementById('turn-color-dot');
+  const legendEl = document.getElementById('player-legend');
+  const logEl = document.getElementById('log-scroll');
+  const boardEl = document.getElementById('hex-board');
+  const handUI = document.getElementById('player-hand-ui');
+  const zoomInBtn = document.getElementById('zoom-in-btn');
+  const zoomOutBtn = document.getElementById('zoom-out-btn');
+  const blockadeStatusEl = document.getElementById('blockade-status');
+  const blockadeListEl = document.getElementById('blockade-list');
 
-  // ── Board zoom — uses the scroll-inner wrapper so scrolling still works ───
-  // The SVG itself keeps width/height 100% inside the inner wrapper.
-  // We scale the wrapper instead, and update the wrapper's explicit pixel
-  // dimensions so the parent container knows how large the content is.
+  // ── Board zoom ─────────────────────────────────────────────────────────────
   const boardScrollInner = document.getElementById('board-scroll-inner');
 
   let boardZoom = 1;
   const BOARD_ZOOM_STEP = 0.25;
-  const BOARD_ZOOM_MIN  = 0.5;
-  const BOARD_ZOOM_MAX  = 2.5;
+  const BOARD_ZOOM_MIN = 0.5;
+  const BOARD_ZOOM_MAX = 2.5;
 
   function updateBoardZoom() {
-    // Scale the inner wrapper using transform-origin top-left so the board
-    // grows toward the bottom-right (natural reading direction).
     boardScrollInner.style.transformOrigin = 'top left';
     boardScrollInner.style.transform = `scale(${boardZoom})`;
-    // Explicitly set the logical size of the wrapper so the parent container
-    // has real scrollable area to work with.
     const natural = boardScrollInner.dataset.naturalWidth
       ? Number(boardScrollInner.dataset.naturalWidth)
       : boardScrollInner.offsetWidth;
     const naturalH = boardScrollInner.dataset.naturalHeight
       ? Number(boardScrollInner.dataset.naturalHeight)
       : boardScrollInner.offsetHeight;
-    // Store natural size after first measurement
     if (!boardScrollInner.dataset.naturalWidth) {
-      boardScrollInner.dataset.naturalWidth  = boardScrollInner.offsetWidth;
+      boardScrollInner.dataset.naturalWidth = boardScrollInner.offsetWidth;
       boardScrollInner.dataset.naturalHeight = boardScrollInner.offsetHeight;
     }
-    // Make the wrapper physically occupy its scaled size so the parent scrollbar tracks it
-    boardScrollInner.style.width  = (Number(boardScrollInner.dataset.naturalWidth)  * boardZoom) + 'px';
+    boardScrollInner.style.width = (Number(boardScrollInner.dataset.naturalWidth) * boardZoom) + 'px';
     boardScrollInner.style.height = (Number(boardScrollInner.dataset.naturalHeight) * boardZoom) + 'px';
+    renderer.notifyZoomChanged(boardZoom);
   }
 
-  // ── 3b. Toast notification helper ─────────────────────────────────────────
+  // ── Toast ──────────────────────────────────────────────────────────────────
   function showToast(text, { icon = 'ℹ️', type = 'info', duration = 3500 } = {}) {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
@@ -95,22 +91,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }, duration);
   }
 
-  // ── 3d. Richer game log ────────────────────────────────────────────────────
+  // ── Log ────────────────────────────────────────────────────────────────────
   function log(msg, type = 'system') {
     const p = document.createElement('p');
     p.className = `log-${type}`;
     p.textContent = msg;
     logEl.prepend(p);
-    // Cap log length to avoid unbounded growth
     if (logEl.children.length > 60) logEl.lastChild.remove();
   }
 
   // ── Game + client setup ────────────────────────────────────────────────────
-  const socket      = io();
-  const client      = new GameClient(socket);
-  const renderer    = new HexRenderer(document.getElementById('hex-board'));
-  window.renderer = renderer; // for debugging in console
-  const cardUI      = new CardUI();
+  const socket = io();
+  const client = new GameClient(socket);
+  const renderer = new HexRenderer(document.getElementById('hex-board'));
+  window.renderer = renderer;
+  const cardUI = new CardUI();
   const clientBoard = new ElDoradoHexBoard.HexBoard();
 
   const tutorial = new Tutorial({ renderer, cardUI });
@@ -118,71 +113,91 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const tutorialBtn = document.getElementById('tutorial-btn');
   tutorialBtn.addEventListener('click', () => {
-    // Reuse the game screen layout (board + hand are already there).
-    // The #tutorial-screen overlay sits on top of everything.
     showScreen('game');
     tutorial.start();
   });
 
   const PAWN_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12'];
-  let allPlayers         = [];
-  let localHand          = [];
-  let selectedCard       = null;
+  let allPlayers = [];
+  let localHand = [];
+  let selectedCard = null;
   let selectedValidMoves = [];
-  let isMidMove          = false;
+  let isMidMove = false;
   let rubblePendingTileId = null;
-  let rubbleCardsNeeded   = 0;
+  let rubbleCardsNeeded = 0;
 
-  // Waiting-room state (updated on player_joined / player_left)
-  let waitingRoomState = { players: [], maxPlayers: 2, hostId: null };
+  // ── Blockade state ─────────────────────────────────────────────────────────
+  let activeBlockades = [];
+  let blockadeEdgeLookup = null;  // kept for potential future use
+  let currentBreakableBlockades = []; // blockade IDs the current card can break
+
+  const BLOCKADE_TERRAIN_ICONS = { jungle: '🌿', water: '🌊', village: '🏘️', rubble: '🪨' };
+
+  function renderBlockadeStatus() {
+    if (!activeBlockades || activeBlockades.length === 0) {
+      blockadeStatusEl.classList.add('hidden');
+      return;
+    }
+    blockadeStatusEl.classList.remove('hidden');
+    blockadeListEl.innerHTML = '';
+    for (const b of activeBlockades) {
+      const row = document.createElement('div');
+      row.className = 'blockade-row';
+      const icon = BLOCKADE_TERRAIN_ICONS[b.terrainType] || '🚧';
+      row.innerHTML = `<span class="blockade-icon">${icon}</span><span class="blockade-label">${b.label}</span>`;
+      blockadeListEl.appendChild(row);
+    }
+  }
+
+  // Waiting-room state
+  let waitingRoomState = { players: [], maxPlayers: 2, hostId: null, enableBlockades: true };
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   function getPlayerName() {
     return nameInput.value.trim() || 'Explorer';
   }
-
   function setLobbyError(msg) {
-    lobbyStatus.textContent  = msg;
-    lobbyStatus.style.color  = '#e74c3c';
+    lobbyStatus.textContent = msg;
+    lobbyStatus.style.color = '#e74c3c';
   }
   function setLobbyInfo(msg) {
-    lobbyStatus.textContent  = msg;
-    lobbyStatus.style.color  = '#aaa';
+    lobbyStatus.textContent = msg;
+    lobbyStatus.style.color = '#aaa';
   }
 
   // ── Waiting-room rendering ─────────────────────────────────────────────────
   function renderWaitingRoom() {
-    const { players, maxPlayers, hostId } = waitingRoomState;
+    const { players, maxPlayers, hostId, enableBlockades } = waitingRoomState;
     roomCodeValue.textContent = client.roomId || '';
     waitingSubtitle.textContent = `${players.length} / ${maxPlayers} players joined`;
+    waitingBlockadesNote.textContent = enableBlockades
+      ? '🚧 Blockades enabled'
+      : 'Blockades disabled';
 
     waitingPlayers.innerHTML = '';
     for (let i = 0; i < maxPlayers; i++) {
-      const p   = players[i];
+      const p = players[i];
       const row = document.createElement('div');
       row.className = 'waiting-player-row';
-
       const dot = document.createElement('span');
       dot.className = 'waiting-player-dot';
       dot.style.background = p ? PAWN_COLORS[i] : '#444';
-
       const name = document.createElement('span');
       name.className = 'waiting-player-name';
       name.textContent = p
         ? p.name + (p.id === hostId ? ' 👑' : '')
         : `Waiting for player ${i + 1}…`;
       name.style.color = p ? '#e0e0e0' : '#666';
-
       row.appendChild(dot);
       row.appendChild(name);
       waitingPlayers.appendChild(row);
     }
 
-    const isHost     = client.isHost;
-    const canStart   = isHost && (players.length >= 2 || (DEBUG && players.length >= 1));
-    startGameBtn.disabled   = !canStart;
+    const isHost = client.isHost;
+    const canStart = isHost && (players.length >= 2 || (DEBUG && players.length >= 1));
+    startGameBtn.disabled = !canStart;
     startGameBtn.style.opacity = canStart ? '1' : '0.4';
-    startGameBtn.style.cursor  = canStart ? 'pointer' : 'not-allowed';
+    startGameBtn.style.cursor = canStart ? 'pointer' : 'not-allowed';
 
     if (!isHost) {
       waitingHint.textContent = 'Waiting for the host to start…';
@@ -203,7 +218,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!name) { setLobbyError('Enter your name first.'); return; }
     setLobbyInfo('Creating room…');
     createRoomBtn.disabled = true;
-    client.createRoom(name, selectedPlayerCount, DEBUG);
+    const enableBlockades = blockadesToggle?.checked ?? true;
+    client.createRoom(name, selectedPlayerCount, DEBUG, enableBlockades);
   });
 
   joinRoomBtn.addEventListener('click', () => {
@@ -216,7 +232,6 @@ document.addEventListener('DOMContentLoaded', () => {
     client.joinRoom(name, code);
   });
 
-  // Allow Enter key in room code field
   roomCodeInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') joinRoomBtn.click();
   });
@@ -242,7 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBoardZoom();
   });
 
-  // ── Debug mode: mark title, but use the normal lobby flow ────────────────
   if (DEBUG) {
     document.title += ' [DEBUG]';
     nameInput.value = 'Debug Player';
@@ -252,13 +266,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   client.onJoined = (data) => {
     createRoomBtn.disabled = false;
-    joinRoomBtn.disabled   = false;
+    joinRoomBtn.disabled = false;
     setLobbyInfo('');
-
     waitingRoomState = {
-      players:    data.players || [],
+      players: data.players || [],
       maxPlayers: data.maxPlayers,
-      hostId:     data.hostId,
+      hostId: data.hostId,
+      enableBlockades: data.enableBlockades ?? true,
     };
     showScreen('waiting');
     renderWaitingRoom();
@@ -266,26 +280,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   client.onJoinError = ({ message }) => {
     createRoomBtn.disabled = false;
-    joinRoomBtn.disabled   = false;
+    joinRoomBtn.disabled = false;
     setLobbyError(message || 'Could not join room.');
   };
 
-  // Waiting room: someone joined or left
   client.onRoomUpdated = (data) => {
-    if (data.players)    waitingRoomState.players    = data.players;
-    if (data.maxPlayers) waitingRoomState.maxPlayers  = data.maxPlayers;
-    if (data.hostId)     waitingRoomState.hostId      = data.hostId;
+    if (data.players) waitingRoomState.players = data.players;
+    if (data.maxPlayers) waitingRoomState.maxPlayers = data.maxPlayers;
+    if (data.hostId) waitingRoomState.hostId = data.hostId;
+    if (data.enableBlockades !== undefined) waitingRoomState.enableBlockades = data.enableBlockades;
     if (waitingScreen.classList.contains('active')) renderWaitingRoom();
   };
 
   client.onPlayerJoined = ({ player }) => log(`${player.name} joined.`);
-  client.onPlayerLeft   = ({ socketId }) => {
+  client.onPlayerLeft = ({ socketId }) => {
     const p = allPlayers.find(p => p.id === socketId);
     if (p) log(`${p.name} left.`);
   };
 
   // ── Game start ─────────────────────────────────────────────────────────────
-  client.onGameStarted = ({ tiles, players, currentPlayerId, market }) => {
+  client.onGameStarted = ({ tiles, players, currentPlayerId, market, blockades }) => {
     showScreen('game');
     allPlayers = players;
     clientBoard.loadMap({ tiles });
@@ -296,15 +310,37 @@ document.addEventListener('DOMContentLoaded', () => {
       if (p.currentTileId) renderer.setPawnPosition(p.id, p.currentTileId, i);
     });
 
+    // ── Blockades ────────────────────────────────────────────────────────────
+    activeBlockades = blockades || [];
+    blockadeEdgeLookup = activeBlockades.length > 0
+      ? window.ElDoradoBlockades.buildEdgeLookup(activeBlockades)
+      : null;
+    renderer.renderBlockades(activeBlockades);
+    renderBlockadeStatus();
+
     cardUI.renderMarket(market);
     updateTurnLabel(currentPlayerId);
 
     selectedCard = null;
     selectedValidMoves = [];
 
-    // 3c: toast on game start
     showToast('Expedition begun! Good luck.', { icon: '🗺️', type: 'accent' });
     log('Game started!', 'system');
+  };
+
+  // ── Blockade broken ────────────────────────────────────────────────────────
+  client.onBlockadeBroken = ({ blockadeId, brokenByName, terrainType }) => {
+    activeBlockades = activeBlockades.filter(b => b.id !== blockadeId);
+    blockadeEdgeLookup = activeBlockades.length > 0
+      ? window.ElDoradoBlockades.buildEdgeLookup(activeBlockades)
+      : null;
+
+    renderer.removeBlockade(blockadeId);
+    renderBlockadeStatus();
+
+    const icon = BLOCKADE_TERRAIN_ICONS[terrainType] || '🚧';
+    showToast(`${brokenByName} broke a ${terrainType} blockade!`, { icon, type: 'accent', duration: 4000 });
+    log(`${brokenByName} broke the ${terrainType} blockade.`, 'blockade');
   };
 
   // ── Board ──────────────────────────────────────────────────────────────────
@@ -316,7 +352,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderer.onTileClick = (tileId) => {
     if (rubblePendingTileId) return;
-
     if (!selectedValidMoves.includes(tileId)) return;
 
     const tile = clientBoard.getTile(tileId);
@@ -329,12 +364,13 @@ document.addEventListener('DOMContentLoaded', () => {
         isMidMove = false;
         selectedCard = null;
         selectedValidMoves = [];
+        currentBreakableBlockades = [];
         renderer.clearHighlights();
+        renderer.setBreakableBlockades([], []);
         exitRubblePaymentMode();
       }, () => {
         exitRubblePaymentMode();
       });
-
       return;
     }
 
@@ -344,13 +380,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // ── Cards ──────────────────────────────────────────────────────────────────
-  cardUI.onCardPlayed     = (instanceId)  => selectCardForMove(instanceId);
-  cardUI.onEndTurn        = ()            => client.endTurn();
-  cardUI.onDiscardClicked = ()            => client.discardCard(selectedCard.instanceId);
-  cardUI.onMarketCard     = ({ cardKey, handCardsUsed }) => client.purchaseCard(cardKey, handCardsUsed);
+  // ── Blockade click ────────────────────────────────────────────────────────
+  renderer.onBlockadeClick = (blockadeId) => {
+    if (!currentBreakableBlockades.includes(blockadeId)) return;
+    client.breakBlockade(blockadeId);
+  };
 
-  // ── Server → UI events ─────────────────────────────────────────────────────
+  // ── Cards ──────────────────────────────────────────────────────────────────
+  cardUI.onCardPlayed = (instanceId) => selectCardForMove(instanceId);
+  cardUI.onEndTurn = () => client.endTurn();
+  cardUI.onDiscardClicked = () => client.discardCard(selectedCard.instanceId);
+  cardUI.onMarketCard = ({ cardKey, handCardsUsed }) => client.purchaseCard(cardKey, handCardsUsed);
+
+  // ── Server → UI ────────────────────────────────────────────────────────────
   client.onHandUpdated = ({ hand }) => {
     localHand = hand;
     cardUI.renderHand(hand);
@@ -360,10 +402,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  client.onValidMoves = ({ validMoves }) => {
+  client.onValidMoves = ({ validMoves, breakableBlockades = [] }) => {
     isMidMove = true;
     selectedValidMoves = validMoves || [];
+    currentBreakableBlockades = breakableBlockades;
     renderer.setValidMoves(selectedValidMoves);
+    renderer.setBreakableBlockades(breakableBlockades, activeBlockades);
   };
 
   client.onPawnMoved = ({ playerId, tileId }) => {
@@ -373,7 +417,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderer.setPawnPosition(playerId, tileId, idx >= 0 ? idx : 0);
     renderer.clearHighlights();
 
-    // 3c: toast for opponent moves only (own moves are obvious)
     if (playerId !== client.playerId) {
       const name = player?.name || 'Opponent';
       showToast(`${name} moved`, { icon: '👣', type: 'info' });
@@ -387,7 +430,9 @@ document.addEventListener('DOMContentLoaded', () => {
     isMidMove = false;
     selectedCard = null;
     selectedValidMoves = [];
+    currentBreakableBlockades = [];
     renderer.clearHighlights();
+    renderer.setBreakableBlockades([], []);
     exitRubblePaymentMode();
   };
 
@@ -395,11 +440,12 @@ document.addEventListener('DOMContentLoaded', () => {
     isMidMove = false;
     selectedCard = null;
     selectedValidMoves = [];
+    currentBreakableBlockades = [];
     renderer.clearHighlights();
+    renderer.setBreakableBlockades([], []);
     updateTurnLabel(nextPlayerId);
     log(`${nextPlayerName}'s turn.`, 'turn');
 
-    // 3c: toast only when it becomes THIS player's turn
     if (nextPlayerId === client.playerId) {
       showToast('Your turn!', { icon: '⚡', type: 'accent', duration: 2000 });
     }
@@ -410,7 +456,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const trigger = allPlayers.find(p => p.id === triggeredByPlayerId);
     const triggerName = trigger?.name || 'A player';
 
-    // 3g: Final round banner drops from top
     if (!document.getElementById('final-round-banner')) {
       const banner = document.createElement('div');
       banner.id = 'final-round-banner';
@@ -418,7 +463,6 @@ document.addEventListener('DOMContentLoaded', () => {
       document.body.appendChild(banner);
     }
 
-    // 3c: toast for final round
     showToast('Final round! Someone reached El Dorado.', { icon: '🏆', type: 'accent', duration: 6000 });
 
     if (client.playerId === triggeredByPlayerId) {
@@ -432,25 +476,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  client.onMarketUpdated  = ({ market }) => { cardUI.renderMarket(market); cardUI.showMarket(false); };
+  client.onMarketUpdated = ({ market }) => { cardUI.renderMarket(market); cardUI.showMarket(false); };
   client.onPurchaseOpened = ({ totalPurchasePower }) => cardUI.openMarketWithBonus(totalPurchasePower);
-  client.onPurchaseClosed = ({ hasPurchasedThisTurn }) => {
-    cardUI.closeMarket();
-    if (hasPurchasedThisTurn) cardUI.disableMarketButton();
-  };
-  client.onPromptRemove   = ({ count })              => showModal(`Select ${count} card(s) to permanently remove from your deck.`);
+  client.onPurchaseClosed = () => cardUI.closeMarket();
+  client.onPromptRemove = ({ count }) => showModal(`Select ${count} card(s) to permanently remove from your deck.`);
 
-  client.onGameWon = ({ playerId }) => {
+  client.onGameWon = ({ playerId, blockadeCounts = {} }) => {
     const winner = allPlayers.find(p => p.id === playerId);
     const winnerName = winner?.name || 'Someone';
     const isMe = client.playerId === playerId;
-    const msg = isMe
+
+    // Blockade tiebreaker display
+    const totalBroken = Object.values(blockadeCounts).reduce((s, n) => s + n, 0);
+    let blockadeMsg = '';
+    if (totalBroken > 0) {
+      const lines = allPlayers
+        .map(p => `  ${p.name}: ${blockadeCounts[p.id] || 0} blockade token(s)`)
+        .join('\n');
+      blockadeMsg = `\n\nBlockade tokens (tiebreaker):\n${lines}`;
+    }
+
+    const msg = (isMe
       ? '🏆 You win! El Dorado is yours!'
-      : `${winnerName} wins the race to El Dorado. Game over.`;
+      : `${winnerName} wins the race to El Dorado. Game over.`) + blockadeMsg;
+
     showModal(msg, false);
-    log(msg, 'win');
-    // 3c: toast for game over
-    showToast(msg, { icon: '🏆', type: isMe ? 'accent' : 'info', duration: 8000 });
+    log(isMe ? '🏆 You win!' : `${winnerName} wins!`, 'win');
+    showToast(isMe ? '🏆 You win!' : `${winnerName} wins!`, {
+      icon: '🏆', type: isMe ? 'accent' : 'info', duration: 8000,
+    });
   };
 
   // ── Reserve picker ─────────────────────────────────────────────────────────
@@ -465,17 +519,15 @@ document.addEventListener('DOMContentLoaded', () => {
     isMidMove = false;
     selectedCard = null;
     selectedValidMoves = [];
+    currentBreakableBlockades = [];
     renderer.clearHighlights();
+    renderer.setBreakableBlockades([], []);
     exitRubblePaymentMode();
     log(`⚠ ${message}`, 'warn');
-
-    // 3c: error toast
     showToast(message, { icon: '⚠️', type: 'warn' });
-
-    // 3h: shake the hand area
     const handEl = document.getElementById('player-hand-ui');
     handEl.classList.remove('shake');
-    void handEl.offsetWidth; // force reflow to restart animation
+    void handEl.offsetWidth;
     handEl.classList.add('shake');
   };
 
@@ -485,7 +537,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     cardUI.updateSelectedCardForMovement(instanceId);
 
-    // Toggle deselect
     if (selectedCard && selectedCard.instanceId === instanceId) {
       selectedCard = null;
       selectedValidMoves = [];
@@ -508,16 +559,31 @@ document.addEventListener('DOMContentLoaded', () => {
         wildCardTerrain: null,
         players: allPlayers,
         handSize: localHand.length,
+        activeBlockades,
+      });
+
+      // Also preview which blockades this card can break
+      const breakable = clientBoard.getBreakableBlockades({
+        currentTileId: player.currentTileId,
+        playedCard: card,
+        movesRemaining: card.movementTotal,
+        wildCardTerrain: null,
+        activeBlockades,
       });
 
       selectedCard = card;
       selectedValidMoves = moves;
+      currentBreakableBlockades = breakable;
       renderer.setValidMoves(moves);
+      renderer.setBreakableBlockades(breakable, activeBlockades);
 
-      if (moves.length === 0) {
+      if (moves.length === 0 && breakable.length === 0) {
         log('No valid moves available for that card.', 'warn');
       } else {
-        log(`Selected ${card.cardName || card.key}: ${moves.length} target(s) available.`, 'system');
+        const parts = [];
+        if (moves.length > 0) parts.push(`${moves.length} move(s)`);
+        if (breakable.length > 0) parts.push(`${breakable.length} blockade(s) breakable`);
+        log(`Selected ${card.cardName || card.key}: ${parts.join(', ')}.`, 'system');
       }
     }
 
@@ -525,8 +591,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
-
-  // Returns the 1-2 character initials for a player name
   function _initials(name) {
     if (!name) return '?';
     const parts = name.trim().split(/\s+/);
@@ -535,13 +599,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateTurnLabel(currentPlayerId) {
-    const isMe  = client.isMyTurn(currentPlayerId);
-    const idx   = allPlayers.findIndex(p => p.id === currentPlayerId);
-    const p     = allPlayers.find(p => p.id === currentPlayerId);
+    const isMe = client.isMyTurn(currentPlayerId);
+    const idx = allPlayers.findIndex(p => p.id === currentPlayerId);
+    const p = allPlayers.find(p => p.id === currentPlayerId);
     const color = PAWN_COLORS[idx] || '#aaa';
 
     playerLabel.textContent = isMe ? '▶ Your turn' : `${p?.name || '?'}'s turn`;
-
     turnDot.style.background = color;
     turnBanner.style.color = color;
     turnBanner.style.borderColor = color;
@@ -552,12 +615,10 @@ document.addEventListener('DOMContentLoaded', () => {
       turnBanner.classList.remove('my-turn');
     }
 
-    // 3e: "just became my turn" flash
     turnBanner.classList.remove('just-became-my-turn');
-    void turnBanner.offsetWidth; // force reflow to restart animation
+    void turnBanner.offsetWidth;
     if (isMe) turnBanner.classList.add('just-became-my-turn');
 
-    // 3f: opponent-turn hand dimming
     handUI.classList.toggle('opponent-turn', !isMe);
     handUI.style.borderTopColor = isMe ? color : '#555';
 
@@ -572,7 +633,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const row = document.createElement('div');
       row.className = 'legend-row' + (isActive ? ' active-player' : '');
 
-      // Avatar circle with initials
       const avatar = document.createElement('span');
       avatar.className = 'legend-avatar';
       avatar.style.background = PAWN_COLORS[i];
@@ -582,7 +642,6 @@ document.addEventListener('DOMContentLoaded', () => {
       name.className = 'legend-name';
       name.textContent = p.name || `Player ${i + 1}`;
 
-      // Hand count badge
       const handCount = document.createElement('span');
       handCount.className = 'legend-hand-count';
       const hSize = (p.id === client.playerId) ? localHand.length : (p.handSize ?? 0);
@@ -609,7 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('modal-cancel-btn').style.display = showCancel ? '' : 'none';
     overlay.classList.remove('hidden');
     document.getElementById('modal-confirm-btn').onclick = () => overlay.classList.add('hidden');
-    document.getElementById('modal-cancel-btn').onclick  = () => overlay.classList.add('hidden');
+    document.getElementById('modal-cancel-btn').onclick = () => overlay.classList.add('hidden');
   }
 
   // ── Debug mode ─────────────────────────────────────────────────────────────
@@ -646,7 +705,6 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
     document.getElementById('game-screen').appendChild(panel);
 
-    // ── Toggle collapse ──────────────────────────────────────────────────────
     const toggleBtn = document.getElementById('debug-toggle-btn');
     toggleBtn.addEventListener('click', () => {
       const collapsed = panel.classList.toggle('collapsed');

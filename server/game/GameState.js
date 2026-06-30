@@ -1,4 +1,5 @@
 const { GameState: GS, CardEffect, TerrainType, TRANSMITTER_PURCHASE_POWER } = require('../../shared/constants');
+const { edgeKey, buildEdgeLookup } = require('../../shared/blockadeData');
 
 class GameStateManager {
   constructor(board) {
@@ -10,15 +11,17 @@ class GameStateManager {
     this.wildCardTerrain = null;
     this.movesRemaining = 0;
     this.validMoves = [];
+    this.breakableBlockades = []; // blockade IDs the current card can break from current position
     this.selectingCardsToRemove = 0;
     this.selectingCardsForRubble = 0;
     this.transmitterActive = false;
     this.pendingReserveSlot = null;
-    this.hasPurchasedThisTurn = false;
     // ── Final-round tracking ──────────────────────────────────────────────────
     this.finalRoundTriggered = false;
     this.finalRoundTriggerPlayerIndex = -1;
     this.firstWinnerId = null;
+    // ── Blockades ─────────────────────────────────────────────────────────────
+    this.activeBlockades = null; // null = disabled
     this.onEvent = null;
   }
 
@@ -30,13 +33,17 @@ class GameStateManager {
     return this.players[this.currentPlayerIndex];
   }
 
+  _rebuildBlockadeLookup() {
+    // No longer needed as a lookup — we use activeBlockades array directly.
+    // Kept as a no-op so GameManager._startGame() call still works.
+  }
+
   // ── Play a card from hand ──────────────────────────────────────────────────
   playCard(playerId, instanceId, isDiscardingFromHand) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
 
     const player = this.currentPlayer;
 
-    // Handle pending removal prompts BEFORE state check
     if (this.selectingCardsToRemove > 0) {
       this.selectingCardsToRemove--;
       player.removeCardPermanently(instanceId);
@@ -54,19 +61,12 @@ class GameStateManager {
       return { ok: true };
     }
 
-    // BUG FIX 3: If the player already started moving with a card (isMidMove),
-    // reselecting a different card should discard the original card, not return
-    // it silently. We detect this by checking if we have a playedCardData with
-    // movesRemaining < movementTotal (i.e. they've moved at least once).
     if (this.state === GS.AWAITING_MOVE) {
       const hadPartialMove = this.playedCardData &&
         this.movesRemaining < this.playedCardData.movementTotal;
-
       if (hadPartialMove) {
-        // Discard the partially-used card before switching
         this._discardPartialCard(player);
       } else {
-        // No moves taken yet — safe to return card to hand
         this._returnCardToHand();
       }
     }
@@ -78,7 +78,7 @@ class GameStateManager {
 
     this.playedCardData = card;
     this.movesRemaining = card.movementTotal;
-    this.state          = GS.AWAITING_MOVE;
+    this.state = GS.AWAITING_MOVE;
 
     if (isDiscardingFromHand) {
       this._disposeFinishedCard(player, false);
@@ -87,12 +87,10 @@ class GameStateManager {
 
     this._handleSpecialCardPlayed(player, card);
 
-    // Transmitter resets state to AWAITING_CARD internally — return early
     if (this.state === GS.AWAITING_CARD) return { ok: true };
 
     this._recalculateValidMoves();
 
-    // Zero-movement cards (Cartographer, Compass) — dispose immediately
     if (this.movesRemaining === 0 && this.selectingCardsToRemove === 0) {
       this._disposeFinishedCard(player);
       return { ok: true };
@@ -101,14 +99,80 @@ class GameStateManager {
     return { ok: true };
   }
 
+  // ── Break a blockade (player pays toll, stays on current tile) ────────────
+  breakBlockade(playerId, blockadeId) {
+    if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
+    if (this.state !== GS.AWAITING_MOVE) return { ok: false, error: 'wrong state' };
+    if (!this.playedCardData) return { ok: false, error: 'no card played' };
+
+    // Must be in the breakable list (adjacency + terrain already validated there)
+    if (!this.breakableBlockades.includes(blockadeId)) {
+      return { ok: false, error: 'cannot break that blockade' };
+    }
+
+    const blockade = (this.activeBlockades || []).find(b => b.id === blockadeId);
+    if (!blockade) return { ok: false, error: 'blockade not found' };
+
+    const player = this.currentPlayer;
+
+    // Rubble blockade: discard one extra card from hand (any type)
+    if (blockade.terrainType === TerrainType.RUBBLE) {
+      const toll = player.hand.find(c => c.instanceId !== this.playedCardData.instanceId);
+      if (!toll) return { ok: false, error: 'need a card to pay the rubble blockade toll' };
+      player.playCard(toll.instanceId);
+      this.emit('hand_updated', { playerId, hand: player.hand });
+    }
+
+    // Wild card: lock its terrain to the blockade terrain (same as moving onto that terrain)
+    if (this.playedCardData.movementTerrain === TerrainType.WILD && !this.wildCardTerrain) {
+      this.wildCardTerrain = blockade.terrainType;
+    }
+
+    // Spend 1 movement
+    this.movesRemaining -= 1;
+
+    // Remove the blockade
+    this.activeBlockades = this.activeBlockades.filter(b => b.id !== blockadeId);
+
+    // Award token
+    if (!player.blockadeTokens) player.blockadeTokens = [];
+    player.blockadeTokens.push(blockadeId);
+
+    this.emit('blockade_broken', {
+      blockadeId,
+      brokenByPlayerId: player.id,
+      brokenByName: player.name,
+      terrainType: blockade.terrainType,
+      remainingBlockades: this.activeBlockades.map(b => b.id),
+    });
+
+    this.emit('log', {
+      message: `${player.name} broke the ${blockade.label} blockade (${blockade.terrainType})!`,
+      type: 'blockade',
+    });
+
+    // Recalculate — seam is now open, new moves available, new breakable blockades
+    if (this.movesRemaining > 0) {
+      this._recalculateValidMoves();
+      this.emit('valid_moves_updated', {
+        validMoves: this.validMoves,
+        breakableBlockades: this.breakableBlockades,
+      });
+    } else {
+      this._disposeFinishedCard(player);
+    }
+
+    return { ok: true };
+  }
+
   // ── Move pawn to a tile ────────────────────────────────────────────────────
   movePawn(playerId, tileId) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
-    if (this.state !== GS.AWAITING_MOVE)  return { ok: false, error: 'wrong state' };
+    if (this.state !== GS.AWAITING_MOVE) return { ok: false, error: 'wrong state' };
     if (!this.validMoves.includes(tileId)) return { ok: false, error: 'invalid move' };
 
     const player = this.currentPlayer;
-    const tile   = this.board.getTile(tileId);
+    const tile = this.board.getTile(tileId);
 
     player.currentTileId = tileId;
     this.emit('pawn_moved', { playerId, tileId });
@@ -116,9 +180,6 @@ class GameStateManager {
     // ── Finishing spaces ───────────────────────────────────────────────────
     if (tile.isFinishing) {
       if (!this.firstWinnerId) this.firstWinnerId = playerId;
-
-      // Move the finisher off the board and onto a free el_dorado podium tile
-      // so the finishing space stays open for subsequent players.
       this._relocateFinisher(player);
 
       const isLastPlayerOfRound = this.currentPlayerIndex === this.players.length - 1;
@@ -128,10 +189,9 @@ class GameStateManager {
         this.finalRoundTriggerPlayerIndex = this.currentPlayerIndex;
 
         if (isLastPlayerOfRound) {
-          // Last player triggered final round on their own turn — game ends now.
           this.state = GS.GAME_OVER;
           this._disposeFinishedCard(player);
-          this.emit('game_won', { playerId: this.firstWinnerId });
+          this.emit('game_won', { playerId: this.firstWinnerId, blockadeCounts: this._blockadeCounts() });
           return { ok: true };
         }
 
@@ -141,16 +201,13 @@ class GameStateManager {
         });
       }
 
-      // Discard the played card, then automatically advance to the next player.
-      // We call _disposeFinishedCard first (emits card_disposed + hand_updated),
-      // then endTurn handles draw-up, turn rotation, and final-round-end check.
       this._disposeFinishedCard(player);
       this.endTurn(playerId);
       return { ok: true };
     }
 
     const terrain = tile.terrainType;
-    const cost    = tile.movementCost;
+    const cost = tile.movementCost;
 
     if (terrain === TerrainType.RUBBLE) {
       this.movesRemaining = 0;
@@ -167,7 +224,10 @@ class GameStateManager {
 
     if (this.movesRemaining > 0) {
       this._recalculateValidMoves();
-      this.emit('valid_moves_updated', { validMoves: this.validMoves });
+      this.emit('valid_moves_updated', {
+        validMoves: this.validMoves,
+        breakableBlockades: this.breakableBlockades,
+      });
       return { ok: true };
     }
 
@@ -177,11 +237,11 @@ class GameStateManager {
 
   movePawnToRubble(playerId, tileId, extraCardIds = []) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
-    if (this.state !== GS.AWAITING_MOVE)  return { ok: false, error: 'wrong state' };
+    if (this.state !== GS.AWAITING_MOVE) return { ok: false, error: 'wrong state' };
     if (!this.validMoves.includes(tileId)) return { ok: false, error: 'invalid move' };
 
     const player = this.currentPlayer;
-    const tile   = this.board.getTile(tileId);
+    const tile = this.board.getTile(tileId);
     const needed = tile.movementCost - 1;
 
     const extraCards = extraCardIds
@@ -191,16 +251,14 @@ class GameStateManager {
       return { ok: false, error: `rubble requires ${needed} extra card(s), got ${extraCards.length}` };
     }
 
-    for (const card of extraCards) {
-      player.playCard(card.instanceId);
-    }
+    for (const card of extraCards) player.playCard(card.instanceId);
 
     player.currentTileId = tileId;
     this.emit('pawn_moved', { playerId, tileId });
 
     if (tile.terrainType === TerrainType.EL_DORADO) {
       this.state = GS.GAME_OVER;
-      this.emit('game_won', { playerId });
+      this.emit('game_won', { playerId, blockadeCounts: this._blockadeCounts() });
       return { ok: true };
     }
 
@@ -218,30 +276,29 @@ class GameStateManager {
 
     const player = this.currentPlayer;
 
-    // BUG FIX 3 (end-turn variant): if the player ends their turn while mid-move
-    // (card played, some moves taken but not exhausted), discard the played card.
     if (this.state === GS.AWAITING_MOVE && this.playedCardData) {
       player.playCard(this.playedCardData.instanceId, this.playedCardData.oneTimeUse);
-      this.playedCardData  = null;
-      this.movesRemaining  = 0;
+      this.playedCardData = null;
+      this.movesRemaining = 0;
       this.wildCardTerrain = null;
-      this.validMoves      = [];
+      this.validMoves = [];
+      this.breakableBlockades = [];
     }
 
     player.drawUpToFour();
 
-    this.state             = GS.AWAITING_CARD;
-    this.playedCardData    = null;
-    this.movesRemaining    = 0;
-    this.wildCardTerrain   = null;
-    this.validMoves        = [];
+    this.state = GS.AWAITING_CARD;
+    this.playedCardData = null;
+    this.movesRemaining = 0;
+    this.wildCardTerrain = null;
+    this.validMoves = [];
+    this.breakableBlockades = [];
     this.transmitterActive = false;
-    this.hasPurchasedThisTurn = false;
 
     if (this.finalRoundTriggered && this.currentPlayerIndex === this.players.length - 1) {
       this.state = GS.GAME_OVER;
       this.emit('hand_updated', { playerId: player.id, hand: player.hand });
-      this.emit('game_won', { playerId: this.firstWinnerId });
+      this.emit('game_won', { playerId: this.firstWinnerId, blockadeCounts: this._blockadeCounts() });
       return { ok: true };
     }
 
@@ -249,18 +306,13 @@ class GameStateManager {
     const next = this.currentPlayer;
 
     this.emit('hand_updated', { playerId: player.id, hand: player.hand });
-    this.emit('turn_ended',   { nextPlayerId: next.id, nextPlayerName: next.name });
+    this.emit('turn_ended', { nextPlayerId: next.id, nextPlayerName: next.name });
     return { ok: true };
   }
 
   // ── Purchase a card from the market ───────────────────────────────────────
-  // handCardsUsed: array of instanceIds the client is spending from their hand
   purchaseCard(playerId, cardKey, handCardsUsed = [], cardMarket) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
-    
-    if (!this.transmitterActive && this.hasPurchasedThisTurn) {
-      return { ok: false, error: 'you can only buy one card from the market per turn' };
-    }
 
     const player = this.currentPlayer;
 
@@ -274,7 +326,6 @@ class GameStateManager {
     let power = spentCards.reduce((sum, c) => sum + (c.purchasingPower ?? 0), 0);
     if (this.transmitterActive) power += TRANSMITTER_PURCHASE_POWER;
 
-    // BUG FIX 2: Transmitter can buy from reserve as well as shop
     let card = cardMarket.getCard(cardKey, false);
     let fromReserve = false;
     if (!card && this.transmitterActive) {
@@ -289,11 +340,9 @@ class GameStateManager {
     const purchased = cardMarket.buyCard(cardKey, fromReserve);
     if (!purchased) return { ok: false, error: 'card sold out' };
     player.discardPile.push(purchased);
-    if (!this.transmitterActive) this.hasPurchasedThisTurn = true;
 
     this.transmitterActive = false;
 
-    // Only prompt for reserve replenishment when buying from the main shop
     if (!fromReserve && cardMarket.shopCardSoldOut(cardKey)) {
       const available = cardMarket.getAvailableReserve();
       if (available.length > 0) {
@@ -307,13 +356,12 @@ class GameStateManager {
     }
 
     this.emit('card_purchased', { playerId, cardKey });
-    this.emit('hand_updated',   { playerId, hand: player.hand });
+    this.emit('hand_updated', { playerId, hand: player.hand });
     this.emit('market_updated', { market: cardMarket.getShopState() });
-    this.emit('purchase_closed', { playerId, hasPurchasedThisTurn: this.hasPurchasedThisTurn });
+    this.emit('purchase_closed', { playerId });
     return { ok: true };
   }
 
-  // ── Buyer picks which reserve card fills the empty shop slot ──────────────
   chooseReserveCard(playerId, soldOutKey, chosenKey, cardMarket) {
     if (!this._isCurrentPlayer(playerId)) {
       return { ok: false, error: 'not your turn' };
@@ -332,12 +380,45 @@ class GameStateManager {
 
   // ── Internal helpers ──────────────────────────────────────────────────────
 
+  _recalculateValidMoves() {
+    const player = this.currentPlayer;
+    this.validMoves = this.board.getValidMoves({
+      currentTileId: player.currentTileId,
+      playedCard: this.playedCardData,
+      movesRemaining: this.movesRemaining,
+      wildCardTerrain: this.wildCardTerrain,
+      players: this.players,
+      handSize: player.hand.length,
+      activeBlockades: this.activeBlockades || [],
+    });
+
+    // Also compute which blockades are breakable from here with this card
+    this.breakableBlockades = this.board.getBreakableBlockades({
+      currentTileId: player.currentTileId,
+      playedCard: this.playedCardData,
+      movesRemaining: this.movesRemaining,
+      wildCardTerrain: this.wildCardTerrain,
+      activeBlockades: this.activeBlockades || [],
+    });
+
+    // Emit breakable blockades alongside valid moves so client can highlight them
+    this.emit('valid_moves_updated', {
+      validMoves: this.validMoves,
+      breakableBlockades: this.breakableBlockades,
+    });
+  }
+
+  _blockadeCounts() {
+    const counts = {};
+    for (const p of this.players) {
+      counts[p.id] = (p.blockadeTokens || []).length;
+    }
+    return counts;
+  }
+
   _handleSpecialCardPlayed(player, card) {
     switch (card.specialEffect) {
       case CardEffect.TRANSMITTER:
-        // BUG FIX 1: Dispose the Transmitter card NOW (it's one-time-use).
-        // Then open the market. Previously _disposeFinishedCard was never
-        // called because the Transmitter path returned early.
         player.playCard(card.instanceId, true);
         this.transmitterActive = true;
         this.state = GS.AWAITING_CARD;
@@ -356,13 +437,13 @@ class GameStateManager {
       case CardEffect.SCIENTIST:
         player.drawCards(1);
         this.selectingCardsToRemove = 1;
-        this.emit('hand_updated',       { playerId: player.id, hand: player.hand });
+        this.emit('hand_updated', { playerId: player.id, hand: player.hand });
         this.emit('prompt_remove_cards', { playerId: player.id, count: 1 });
         break;
       case CardEffect.TRAVEL_LOG:
         player.drawCards(2);
         this.selectingCardsToRemove = 2;
-        this.emit('hand_updated',       { playerId: player.id, hand: player.hand });
+        this.emit('hand_updated', { playerId: player.id, hand: player.hand });
         this.emit('prompt_remove_cards', { playerId: player.id, count: 2 });
         break;
       default:
@@ -370,83 +451,66 @@ class GameStateManager {
     }
   }
 
-  _recalculateValidMoves() {
-    const player = this.currentPlayer;
-    this.validMoves = this.board.getValidMoves({
-      currentTileId:   player.currentTileId,
-      playedCard:      this.playedCardData,
-      movesRemaining:  this.movesRemaining,
-      wildCardTerrain: this.wildCardTerrain,
-      players:         this.players,
-      handSize:        player.hand.length,
-    });
-  }
-
   _disposeFinishedCard(player, functionWasUsed = true) {
     player.playCard(this.playedCardData.instanceId, functionWasUsed && this.playedCardData.oneTimeUse);
-    this.state           = GS.AWAITING_CARD;
+    this.state = GS.AWAITING_CARD;
     this.wildCardTerrain = null;
-    this.playedCardData  = null;
-    this.movesRemaining  = 0;
-    this.validMoves      = [];
+    this.playedCardData = null;
+    this.movesRemaining = 0;
+    this.validMoves = [];
+    this.breakableBlockades = [];
     this.emit('card_disposed', { playerId: player.id });
-    this.emit('hand_updated',  { playerId: player.id, hand: player.hand });
+    this.emit('hand_updated', { playerId: player.id, hand: player.hand });
   }
 
-  // BUG FIX 3: Discard a partially-used card (player moved at least once but
-  // didn't exhaust all moves, then tried to select a different card).
   _discardPartialCard(player) {
     player.playCard(this.playedCardData.instanceId, this.playedCardData.oneTimeUse);
-    this.state           = GS.AWAITING_CARD;
+    this.state = GS.AWAITING_CARD;
     this.wildCardTerrain = null;
-    this.playedCardData  = null;
-    this.movesRemaining  = 0;
-    this.validMoves      = [];
+    this.playedCardData = null;
+    this.movesRemaining = 0;
+    this.validMoves = [];
+    this.breakableBlockades = [];
     this.emit('hand_updated', { playerId: player.id, hand: player.hand });
   }
 
   cancelCard(playerId) {
     if (!this._isCurrentPlayer(playerId)) return { ok: false, error: 'not your turn' };
-    if (this.state !== GS.AWAITING_MOVE)  return { ok: false, error: 'nothing to cancel' };
+    if (this.state !== GS.AWAITING_MOVE) return { ok: false, error: 'nothing to cancel' };
 
     const player = this.currentPlayer;
     const hadPartialMove = this.playedCardData &&
       this.movesRemaining < this.playedCardData.movementTotal;
 
     if (hadPartialMove) {
-      // Can't cancel after moving — discard the card instead
       this._discardPartialCard(player);
       this.emit('card_disposed', { playerId: player.id });
     } else {
       this._returnCardToHand();
-      this.emit('hand_updated',   { playerId: player.id, hand: player.hand });
+      this.emit('hand_updated', { playerId: player.id, hand: player.hand });
     }
     return { ok: true };
   }
 
   _returnCardToHand() {
-    this.playedCardData  = null;
-    this.state           = GS.AWAITING_CARD;
+    this.playedCardData = null;
+    this.state = GS.AWAITING_CARD;
     this.wildCardTerrain = null;
-    this.movesRemaining  = 0;
-    this.validMoves      = [];
+    this.movesRemaining = 0;
+    this.validMoves = [];
+    this.breakableBlockades = [];
   }
 
   _isCurrentPlayer(playerId) {
     return this.currentPlayer && this.currentPlayer.id === playerId;
   }
 
-  // Teleport a finisher to the first unoccupied el_dorado tile so the
-  // finishing space stays open for players still completing their turns.
   _relocateFinisher(player) {
     const elDoradoTiles = [...this.board.tiles.values()]
       .filter(t => t.terrainType === TerrainType.EL_DORADO);
-
     const occupiedIds = new Set(this.players.map(p => p.currentTileId));
-
     const podium = elDoradoTiles.find(t => !occupiedIds.has(t.id));
-    if (!podium) return; // all podium tiles full (shouldn't happen with 3 tiles / ≤4 players)
-
+    if (!podium) return;
     player.currentTileId = podium.id;
     this.emit('pawn_moved', { playerId: player.id, tileId: podium.id });
   }
